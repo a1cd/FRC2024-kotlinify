@@ -35,7 +35,7 @@ public class IntakeIOSparkMax implements IntakeIO {
   private final AbsoluteEncoder encoder =
           arm.getAbsoluteEncoder(SparkAbsoluteEncoder.Type.kDutyCycle);
   private final AbsoluteEncoder rollerEncoder =
-          arm.getAbsoluteEncoder(SparkAbsoluteEncoder.Type.kDutyCycle);
+          roller.getAbsoluteEncoder(SparkAbsoluteEncoder.Type.kDutyCycle);
 
   public IntakeIOSparkMax() {
     arm.restoreFactoryDefaults();
