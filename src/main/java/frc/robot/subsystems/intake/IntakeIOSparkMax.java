@@ -25,6 +25,7 @@ import org.littletonrobotics.junction.Logger;
 /**
  * NOTE: To use the Spark Flex / NEO Vortex, replace all instances of "CANSparkMax" with
  * "CANSparkFlex".
+ *
  */
 public class IntakeIOSparkMax implements IntakeIO {
   private static final double ARM_GEAR_RATIO = 100.0;
