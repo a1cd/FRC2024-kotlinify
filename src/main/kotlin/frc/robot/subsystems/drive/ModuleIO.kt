@@ -10,41 +10,51 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.drive
 
-package frc.robot.subsystems.drive;
+import edu.wpi.first.math.geometry.Rotation2d
+import org.littletonrobotics.junction.AutoLog
 
-import edu.wpi.first.math.geometry.Rotation2d;
-import org.littletonrobotics.junction.AutoLog;
+interface ModuleIO {
+    /** Updates the set of loggable inputs.  */
+    fun updateInputs(inputs: ModuleIOInputs) {}
 
-public interface ModuleIO {
-  /** Updates the set of loggable inputs. */
-  default void updateInputs(ModuleIOInputs inputs) {}
+    /** Run the drive motor at the specified voltage.  */
+    fun setDriveVoltage(volts: Double) {}
 
-  /** Run the drive motor at the specified voltage. */
-  default void setDriveVoltage(double volts) {}
+    /** Run the turn motor at the specified voltage.  */
+    fun setTurnVoltage(volts: Double) {}
 
-  /** Run the turn motor at the specified voltage. */
-  default void setTurnVoltage(double volts) {}
+    /** Enable or disable brake mode on the drive motor.  */
+    fun setDriveBrakeMode(enable: Boolean) {}
 
-  /** Enable or disable brake mode on the drive motor. */
-  default void setDriveBrakeMode(boolean enable) {}
+    /** Enable or disable brake mode on the turn motor.  */
+    fun setTurnBrakeMode(enable: Boolean) {}
 
-  /** Enable or disable brake mode on the turn motor. */
-  default void setTurnBrakeMode(boolean enable) {}
+    @AutoLog
+    class ModuleIOInputs {
+        @JvmField
+        var drivePositionRad: Double = 0.0
+        @JvmField
+        var driveVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var driveAppliedVolts: Double = 0.0
+        @JvmField
+        var driveCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var driveTemperature: DoubleArray = doubleArrayOf()
 
-  @AutoLog
-  class ModuleIOInputs {
-    public double drivePositionRad = 0.0;
-    public double driveVelocityRadPerSec = 0.0;
-    public double driveAppliedVolts = 0.0;
-    public double[] driveCurrentAmps = new double[] {};
-    public double[] driveTemperature = new double[] {};
-
-    public Rotation2d turnAbsolutePosition = new Rotation2d();
-    public Rotation2d turnPosition = new Rotation2d();
-    public double turnVelocityRadPerSec = 0.0;
-    public double turnAppliedVolts = 0.0;
-    public double[] turnCurrentAmps = new double[] {};
-    public double[] turnTemperature = new double[] {};
-  }
+        @JvmField
+        var turnAbsolutePosition: Rotation2d = Rotation2d()
+        @JvmField
+        var turnPosition: Rotation2d = Rotation2d()
+        @JvmField
+        var turnVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var turnAppliedVolts: Double = 0.0
+        @JvmField
+        var turnCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var turnTemperature: DoubleArray = doubleArrayOf()
+    }
 }

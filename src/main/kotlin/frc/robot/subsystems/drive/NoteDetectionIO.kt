@@ -1,27 +1,36 @@
-package frc.robot.subsystems.drive;
+package frc.robot.subsystems.drive
 
-import org.littletonrobotics.junction.AutoLog;
+import org.littletonrobotics.junction.AutoLog
 
-public interface NoteDetectionIO {
+interface NoteDetectionIO {
+    val cameraName: String
+        get() {
+            return Companion.cameraName
+        }
 
-    String cameraName = "";
-    default String getCameraName() {
-        return cameraName;
+    fun updateInputs(inputs: NoteDetectionIOInputs) {
     }
-    default void updateInputs(NoteDetectionIOInputs inputs) {
+
+    fun turnOffLEDs() {
     }
 
-    default void turnOffLEDs() {
-
-    }
     @AutoLog
     class NoteDetectionIOInputs {
-        String name = "";
-        String jsonDump = "";
-        double tx = 0.0;
-        double ty = 0.0;
-        double ta = 0.0;
-        boolean tv = false;
+        @JvmField
+        var name: String = ""
+        @JvmField
+        var jsonDump: String = ""
+        @JvmField
+        var tx: Double = 0.0
+        @JvmField
+        var ty: Double = 0.0
+        @JvmField
+        var ta: Double = 0.0
+        @JvmField
+        var tv: Boolean = false
     }
 
+    companion object {
+        const val cameraName: String = ""
+    }
 }

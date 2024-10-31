@@ -10,66 +10,63 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.drive
 
-package frc.robot.subsystems.drive;
+import com.ctre.phoenix6.BaseStatusSignal
+import com.ctre.phoenix6.StatusCode
+import com.ctre.phoenix6.StatusSignal
+import com.ctre.phoenix6.configs.Pigeon2Configuration
+import com.ctre.phoenix6.hardware.Pigeon2
+import edu.wpi.first.math.geometry.Rotation2d
+import edu.wpi.first.math.util.Units
+import frc.robot.subsystems.drive.GyroIO.GyroIOInputs
 
-import com.ctre.phoenix6.BaseStatusSignal;
-import com.ctre.phoenix6.StatusCode;
-import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.Pigeon2Configuration;
-import com.ctre.phoenix6.hardware.Pigeon2;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.util.Units;
+/** IO implementation for Pigeon2  */
+class GyroIOPigeon2 : GyroIO {
+    private val pigeon = Pigeon2(20)
+    private val yaw: StatusSignal<Double> = pigeon.yaw
+    private val yawVelocity: StatusSignal<Double> = pigeon.angularVelocityZWorld
 
-/** IO implementation for Pigeon2 */
-public class GyroIOPigeon2 implements GyroIO {
-  private final Pigeon2 pigeon = new Pigeon2(20);
-  private final StatusSignal<Double> yaw = pigeon.getYaw();
-  private final StatusSignal<Double> yawVelocity = pigeon.getAngularVelocityZWorld();
+    private val accelerationX: StatusSignal<Double> = pigeon.accelerationX
+    private val accelerationY: StatusSignal<Double> = pigeon.accelerationY
+    private val accelerationZ: StatusSignal<Double> = pigeon.accelerationZ
 
-  private final StatusSignal<Double> accelerationX = pigeon.getAccelerationX();
-  private final StatusSignal<Double> accelerationY = pigeon.getAccelerationY();
-  private final StatusSignal<Double> accelerationZ = pigeon.getAccelerationZ();
+    private val getMagFieldX: StatusSignal<Double> = pigeon.magneticFieldX
+    private val getMagFieldY: StatusSignal<Double> = pigeon.magneticFieldY
+    private val getMagFieldZ: StatusSignal<Double> = pigeon.magneticFieldZ
 
-  private final StatusSignal<Double> getMagFieldX = pigeon.getMagneticFieldX();
-  private final StatusSignal<Double> getMagFieldY = pigeon.getMagneticFieldY();
-  private final StatusSignal<Double> getMagFieldZ = pigeon.getMagneticFieldZ();
+    private val quatW: StatusSignal<Double> = pigeon.quatW
+    private val quatX: StatusSignal<Double> = pigeon.quatX
+    private val quatY: StatusSignal<Double> = pigeon.quatY
+    private val quatZ: StatusSignal<Double> = pigeon.quatZ
 
-  private final StatusSignal<Double> quatW = pigeon.getQuatW();
-  private final StatusSignal<Double> quatX = pigeon.getQuatX();
-  private final StatusSignal<Double> quatY = pigeon.getQuatY();
-  private final StatusSignal<Double> quatZ = pigeon.getQuatZ();
-
-  public GyroIOPigeon2() {
-    pigeon.getConfigurator().apply(new Pigeon2Configuration());
-    pigeon.getConfigurator().setYaw(0.0);
-    StatusSignal.setUpdateFrequencyForAll(
-            100,
+    init {
+        pigeon.configurator.apply(Pigeon2Configuration())
+        pigeon.configurator.setYaw(0.0)
+        StatusSignal.setUpdateFrequencyForAll(
+            100.0,
             yaw, yawVelocity, accelerationY, accelerationX, accelerationZ, getMagFieldX,
             getMagFieldY, getMagFieldZ,
             quatW, quatX, quatY, quatZ
-    );
-    pigeon.optimizeBusUtilization();
-  }
+        )
+        pigeon.optimizeBusUtilization()
+    }
 
-  @Override
-  public void updateInputs(GyroIOInputs inputs) {
-    StatusCode x = BaseStatusSignal.refreshAll(
+    override fun updateInputs(inputs: GyroIOInputs) {
+        val x = BaseStatusSignal.refreshAll(
             yaw, yawVelocity, accelerationX, accelerationY, accelerationZ,
             getMagFieldX, getMagFieldY, getMagFieldZ,
             quatW, quatX, quatY, quatZ
-    );
-    inputs.connected = x.equals(StatusCode.OK);
-    inputs.yawPosition = Rotation2d.fromDegrees(yaw.getValueAsDouble());
-    inputs.yawVelocityRadPerSec = Units.degreesToRadians(yawVelocity.getValueAsDouble());
-    inputs.accelX = accelerationX.getValueAsDouble();
-    inputs.accelY = accelerationY.getValueAsDouble();
-    inputs.accelZ = accelerationZ.getValueAsDouble();
-    inputs.quatW = quatW.getValueAsDouble();
-    inputs.quatX = quatX.getValueAsDouble();
-    inputs.quatY = quatY.getValueAsDouble();
-    inputs.quatZ = quatZ.getValueAsDouble();
-
-
-  }
+        )
+        inputs.connected = x == StatusCode.OK
+        inputs.yawPosition = Rotation2d.fromDegrees(yaw.valueAsDouble)
+        inputs.yawVelocityRadPerSec = Units.degreesToRadians(yawVelocity.valueAsDouble)
+        inputs.accelX = accelerationX.valueAsDouble
+        inputs.accelY = accelerationY.valueAsDouble
+        inputs.accelZ = accelerationZ.valueAsDouble
+        inputs.quatW = quatW.valueAsDouble
+        inputs.quatX = quatX.valueAsDouble
+        inputs.quatY = quatY.valueAsDouble
+        inputs.quatZ = quatZ.valueAsDouble
+    }
 }

@@ -1,33 +1,42 @@
-package frc.robot.subsystems.intake;
+package frc.robot.subsystems.intake
 
-import org.littletonrobotics.junction.AutoLog;
+import org.littletonrobotics.junction.AutoLog
 
-public interface IntakeIO {
+interface IntakeIO {
+    @AutoLog
+    class IntakeIOInputs {
+        @JvmField
+        var armPositionRad: Double = 0.0
+        @JvmField
+        var armVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var armAppliedVolts: Double = 0.0
+        @JvmField
+        var armCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var armTemperature: DoubleArray = doubleArrayOf()
 
-  @AutoLog
-  public static class IntakeIOInputs {
-    public double armPositionRad = 0.0;
-    public double armVelocityRadPerSec = 0.0;
-    public double armAppliedVolts = 0.0;
-    public double[] armCurrentAmps = new double[] {};
-    public double[] armTemperature = new double[] {};
+        @JvmField
+        var rollerVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var rollerAppliedVolts: Double = 0.0
+        @JvmField
+        var rollerCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var rollerPositionRad: Double = 0.0
+        @JvmField
+        var rollerTemperature: DoubleArray = doubleArrayOf()
+    }
 
-    public double rollerVelocityRadPerSec;
-    public double rollerAppliedVolts = 0.0;
-    public double[] rollerCurrentAmps = new double[] {};
-    public double rollerPositionRad = 0.0;
-    public double[] rollerTemperature = new double[] {};
-  }
+    /** Updates the set of loggable inputs.  */
+    fun updateInputs(inputs: IntakeIOInputs) {}
 
-  /** Updates the set of loggable inputs. */
-  public default void updateInputs(IntakeIOInputs inputs) {}
+    /** Run open loop at the specified voltage.  */
+    fun setArmVoltage(volts: Double) {}
 
-  /** Run open loop at the specified voltage. */
-  public default void setArmVoltage(double volts) {}
+    /** Set intake wheel voltage.  */
+    fun setRollerPercent(percent: Double) {}
 
-  /** Set intake wheel voltage. */
-  public default void setRollerPercent(double percent) {}
-
-  public default void setRollerVoltage(double volts) {
-  }
+    fun setRollerVoltage(volts: Double) {
+    }
 }

@@ -10,60 +10,56 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.feeder
 
-package frc.robot.subsystems.feeder;
+import edu.wpi.first.math.system.plant.DCMotor
+import edu.wpi.first.wpilibj.simulation.FlywheelSim
+import frc.robot.subsystems.feeder.FeederIO.FeederIOInputs
+import java.util.function.BooleanSupplier
 
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.wpilibj.simulation.FlywheelSim;
+class FeederIOSim : FeederIO {
+    private val sim: FlywheelSim = FlywheelSim(
+        DCMotor.getNEO(1), 1.5, 0.025
+    )
 
-import java.util.function.BooleanSupplier;
-
-public class FeederIOSim implements FeederIO {
-    private final FlywheelSim sim =
-            new FlywheelSim(
-                    DCMotor.getNEO(1), 1.5, 0.025);
     //  private ProfiledPIDController pid = new ProfiledPIDController(0.0, 0.0, 0.0);
     //  private SimpleMotorFeedforward ffModel = new SimpleMotorFeedforward(0.0, 0.0);
+    private var cycles: Int = 0
 
-    private int cycles = 0;
+    private var intakeSupplier: BooleanSupplier = BooleanSupplier { cycles % 512 == 0 }
+    private var shooterSupplier: BooleanSupplier = BooleanSupplier { cycles % 848 == 0 }
 
-    private BooleanSupplier intakeSupplier = () -> cycles % 512 == 0;
-    private BooleanSupplier shooterSupplier = () -> cycles % 848 == 0;
-
-    public FeederIOSim(BooleanSupplier intakeSupplier, BooleanSupplier shooterSupplier) {
-        this.intakeSupplier = intakeSupplier;
-        this.shooterSupplier = shooterSupplier;
+    constructor(intakeSupplier: BooleanSupplier, shooterSupplier: BooleanSupplier) {
+        this.intakeSupplier = intakeSupplier
+        this.shooterSupplier = shooterSupplier
     }
 
-    public FeederIOSim() {}
+    constructor()
 
-    private double appliedVolts = 0.0;
+    private var appliedVolts: Double = 0.0
 
-    @Override
-    public void updateInputs(FeederIOInputs inputs) {
-        cycles++;
-        sim.setInputVoltage(appliedVolts);
+    override fun updateInputs(inputs: FeederIOInputs) {
+        cycles++
+        sim.setInputVoltage(appliedVolts)
 
-        sim.update(0.02);
+        sim.update(0.02)
 
-        inputs.positionRad = sim.getAngularVelocityRadPerSec();
-        inputs.velocityRadPerSec = sim.getAngularVelocityRadPerSec();
-        inputs.appliedVolts = appliedVolts;
-        inputs.currentAmps = new double[]{sim.getCurrentDrawAmps()};
-        inputs.temperature = new double[]{0.0};
-        inputs.beamUnobstructed = shooterSupplier.getAsBoolean();
-        inputs.intakebeamUnobstructed = intakeSupplier.getAsBoolean();
+        inputs.positionRad = sim.angularVelocityRadPerSec
+        inputs.velocityRadPerSec = sim.angularVelocityRadPerSec
+        inputs.appliedVolts = appliedVolts
+        inputs.currentAmps = doubleArrayOf(sim.currentDrawAmps)
+        inputs.temperature = doubleArrayOf(0.0)
+        inputs.beamUnobstructed = shooterSupplier.asBoolean
+        inputs.intakebeamUnobstructed = intakeSupplier.asBoolean
     }
 
-    @Override
-    public void setVoltage(double volts) {
-        appliedVolts = volts;
-        sim.setInputVoltage(volts);
+    override fun setVoltage(volts: Double) {
+        appliedVolts = volts
+        sim.setInputVoltage(volts)
     }
 
-    @Override
-    public void stop() {
-        sim.setState(sim.getAngularVelocityRadPerSec());
-        setVoltage(0.0);
+    override fun stop() {
+        sim.setState(sim.angularVelocityRadPerSec)
+        setVoltage(0.0)
     }
 }

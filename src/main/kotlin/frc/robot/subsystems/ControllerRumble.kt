@@ -1,21 +1,17 @@
-package frc.robot.subsystems;
+package frc.robot.subsystems
 
-import edu.wpi.first.wpilibj.GenericHID;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj.GenericHID
+import edu.wpi.first.wpilibj.XboxController
+import edu.wpi.first.wpilibj2.command.SubsystemBase
 
-public class ControllerRumble extends SubsystemBase {
-    private final XboxController controller;
+class ControllerRumble(port: Int) : SubsystemBase() {
+    private val controller: XboxController = XboxController(port)
 
-    public ControllerRumble(int port) {
-        controller = new XboxController(port);
+    fun setRumbleLight(rumble: Double) {
+        controller.setRumble(GenericHID.RumbleType.kRightRumble, rumble)
     }
 
-    public void setRumbleLight(double rumble) {
-        controller.setRumble(GenericHID.RumbleType.kRightRumble, rumble);
-    }
-
-    public void setRumbleHeavy(double rumble) {
-        controller.setRumble(GenericHID.RumbleType.kLeftRumble, rumble);
+    fun setRumbleHeavy(rumble: Double) {
+        controller.setRumble(GenericHID.RumbleType.kLeftRumble, rumble)
     }
 }

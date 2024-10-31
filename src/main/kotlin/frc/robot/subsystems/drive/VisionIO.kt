@@ -1,122 +1,122 @@
-package frc.robot.subsystems.drive;
+package frc.robot.subsystems.drive
 
-import edu.wpi.first.math.geometry.Quaternion;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Translation3d;
-import org.littletonrobotics.junction.LogTable;
-import org.littletonrobotics.junction.inputs.LoggableInputs;
-import org.photonvision.common.dataflow.structures.Packet;
-import org.photonvision.targeting.PhotonPipelineResult;
+import edu.wpi.first.math.geometry.Quaternion
+import edu.wpi.first.math.geometry.Rotation3d
+import edu.wpi.first.math.geometry.Transform3d
+import edu.wpi.first.math.geometry.Translation3d
+import org.littletonrobotics.junction.LogTable
+import org.littletonrobotics.junction.LogTable.LogValue
+import org.littletonrobotics.junction.inputs.LoggableInputs
+import org.photonvision.common.dataflow.structures.Packet
+import org.photonvision.targeting.PhotonPipelineResult
 
-public interface VisionIO {
+interface VisionIO {
+    val cameraName: String
+        get() {
+            return Companion.cameraName
+        }
 
-  String cameraName = "";
-  default String getCameraName() {
-    return cameraName;
-  }
-  default void updateInputs(VisionIOInputs inputs) {
-  }
-
-  class VisionIOInputs implements LoggableInputs {
-    boolean driverMode = false;
-    double latencyMillis = 0;
-    double timestampSeconds = 0;
-    boolean connected = false;
-    String name = "";
-    PhotonPipelineResult cameraResult = new PhotonPipelineResult();
-    private PhotonPipelineResult.APacketSerde aPacketSerde;
-
-    public VisionIOInputs(String name) {
-      this.name = name;
+    fun updateInputs(inputs: VisionIOInputs) {
     }
 
-    public VisionIOInputs() {}
+    class VisionIOInputs : LoggableInputs {
+        var driverMode: Boolean = false
+        var latencyMillis: Double = 0.0
+        var timestampSeconds: Double = 0.0
+        var connected: Boolean = false
+        var name: String = ""
+        var cameraResult: PhotonPipelineResult = PhotonPipelineResult()
+        private var aPacketSerde: PhotonPipelineResult.APacketSerde? = null
 
-    public Transform3d[] arrayToPosition(double[] value) {
-      var length = ((int) (value.length / 7.0));
-      Transform3d[] data = new Transform3d[length + 1];
-      for (int i = 0; i < length; i++) {
-        var X = value[i * 7];
-        var Y = value[i * 7 + 1];
-        var Z = value[i * 7 + 2];
-        var rotW = value[i * 7 + 3];
-        var rotX = value[i * 7 + 4];
-        var rotY = value[i * 7 + 5];
-        var rotZ = value[i * 7 + 6];
-        data[i] =
-                new Transform3d(
-                        new Translation3d(X, Y, Z), new Rotation3d(new Quaternion(rotW, rotX, rotY, rotZ)));
-      }
-      return data;
+        constructor(name: String) {
+            this.name = name
+        }
+
+        constructor()
+
+        fun arrayToPosition(value: DoubleArray): Array<Transform3d?> {
+            val length: Int = ((value.size / 7.0).toInt())
+            val data: Array<Transform3d?> = arrayOfNulls(length + 1)
+            for (i in 0 until length) {
+                val X: Double = value[i * 7]
+                val Y: Double = value[i * 7 + 1]
+                val Z: Double = value[i * 7 + 2]
+                val rotW: Double = value[i * 7 + 3]
+                val rotX: Double = value[i * 7 + 4]
+                val rotY: Double = value[i * 7 + 5]
+                val rotZ: Double = value[i * 7 + 6]
+                data[i] =
+                    Transform3d(
+                        Translation3d(X, Y, Z), Rotation3d(Quaternion(rotW, rotX, rotY, rotZ))
+                    )
+            }
+            return data
+        }
+
+        fun positionToArray(vararg value: Transform3d): DoubleArray {
+            val data: DoubleArray = DoubleArray(value.size * 7)
+            for (i in value.indices) {
+                data[i * 7] = value[i].x
+                data[i * 7 + 1] = value[i].y
+                data[i * 7 + 2] = value[i].z
+                data[i * 7 + 3] = value[i].rotation.quaternion.w
+                data[i * 7 + 4] = value[i].rotation.quaternion.x
+                data[i * 7 + 5] = value[i].rotation.quaternion.y
+                data[i * 7 + 6] = value[i].rotation.quaternion.z
+            }
+            return data
+        }
+
+        override fun toLog(table: LogTable) {
+            table.put("LatencyMillis", latencyMillis)
+            table.put("TimestampSeconds", timestampSeconds)
+            table.put("Name", name)
+
+            val packet: Packet = Packet(cameraResult.packetSize)
+            aPacketSerde = PhotonPipelineResult.APacketSerde()
+            aPacketSerde!!.pack(packet, cameraResult)
+            table.put("CameraResultData", packet.data)
+        }
+
+        override fun fromLog(table: LogTable) {
+            //            driverMode = table.getBoolean("DriverMode", driverMode);
+            latencyMillis = table.get("LatencyMillis", latencyMillis)
+            timestampSeconds = table.get("TimestampSeconds", timestampSeconds)
+            name = table.get("Name", name)
+            val cameraResultData: LogValue? = table.get("CameraResultData")
+            if (cameraResultData != null) {
+                cameraResultData.raw
+                cameraResult = PhotonPipelineResult.serde.unpack(Packet(cameraResultData.raw))
+            } else {
+                connected = false
+            }
+
+            cameraResult.timestampSeconds = timestampSeconds
+        }
+
+        override fun equals(o: Any?): Boolean {
+            if (this === o) return true
+            if (o !is VisionIOInputs) return false
+
+            val that: VisionIOInputs = o
+
+            if (driverMode != that.driverMode) return false
+            if (timestampSeconds.compareTo(that.timestampSeconds) != 0) return false
+            return cameraResult == that.cameraResult
+        }
+
+        override fun hashCode(): Int {
+            var result: Int = (if (driverMode) 1 else 0)
+            var temp: Long = java.lang.Double.doubleToLongBits(latencyMillis)
+            result = 31 * result + (temp xor (temp ushr 32)).toInt()
+            temp = java.lang.Double.doubleToLongBits(timestampSeconds)
+            result = 31 * result + (temp xor (temp ushr 32)).toInt()
+            result = 31 * result + cameraResult.hashCode()
+            return result
+        }
     }
 
-    public double[] positionToArray(Transform3d... value) {
-      double[] data = new double[value.length * 7];
-      for (int i = 0; i < value.length; i++) {
-        data[i * 7] = value[i].getX();
-        data[i * 7 + 1] = value[i].getY();
-        data[i * 7 + 2] = value[i].getZ();
-        data[i * 7 + 3] = value[i].getRotation().getQuaternion().getW();
-        data[i * 7 + 4] = value[i].getRotation().getQuaternion().getX();
-        data[i * 7 + 5] = value[i].getRotation().getQuaternion().getY();
-        data[i * 7 + 6] = value[i].getRotation().getQuaternion().getZ();
-      }
-      return data;
+    companion object {
+        const val cameraName: String = ""
     }
-
-    @Override
-    public void toLog(LogTable table) {
-      table.put("LatencyMillis", latencyMillis);
-      table.put("TimestampSeconds", timestampSeconds);
-      table.put("Name", name);
-
-      var packet = new Packet(cameraResult.getPacketSize());
-      aPacketSerde = new PhotonPipelineResult.APacketSerde();
-      aPacketSerde.pack(packet, cameraResult);
-      table.put("CameraResultData", packet.getData());
-    }
-
-    @Override
-    public void fromLog(LogTable table) {
-      //            driverMode = table.getBoolean("DriverMode", driverMode);
-      latencyMillis = table.get("LatencyMillis", latencyMillis);
-      timestampSeconds = table.get("TimestampSeconds", timestampSeconds);
-      name = table.get("Name", name);
-      LogTable.LogValue cameraResultData = table.get("CameraResultData");
-      if (cameraResultData != null) {
-        cameraResultData.getRaw();
-        cameraResult = PhotonPipelineResult.serde.unpack(new Packet(cameraResultData.getRaw()));
-      } else {
-        connected = false;
-      }
-
-      cameraResult.setTimestampSeconds(timestampSeconds);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (!(o instanceof VisionIOInputs)) return false;
-
-      VisionIOInputs that = (VisionIOInputs) o;
-
-      if (driverMode != that.driverMode) return false;
-      if (Double.compare(timestampSeconds, that.timestampSeconds) != 0) return false;
-      return cameraResult.equals(that.cameraResult);
-    }
-
-    @Override
-    public int hashCode() {
-      int result;
-      long temp;
-      result = (driverMode ? 1 : 0);
-      temp = Double.doubleToLongBits(latencyMillis);
-      result = 31 * result + (int) (temp ^ (temp >>> 32));
-      temp = Double.doubleToLongBits(timestampSeconds);
-      result = 31 * result + (int) (temp ^ (temp >>> 32));
-      result = 31 * result + cameraResult.hashCode();
-      return result;
-    }
-  }
 }

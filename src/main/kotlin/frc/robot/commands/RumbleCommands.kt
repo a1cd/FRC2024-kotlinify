@@ -1,35 +1,34 @@
-package frc.robot.commands;
+package frc.robot.commands
 
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.subsystems.ControllerRumble;
+import edu.wpi.first.wpilibj.Timer
+import edu.wpi.first.wpilibj2.command.Command
+import edu.wpi.first.wpilibj2.command.Commands
+import frc.robot.subsystems.ControllerRumble
+import kotlin.math.max
+import kotlin.math.pow
 
-import static edu.wpi.first.wpilibj2.command.Commands.run;
-import static java.lang.Math.max;
-import static java.lang.Math.pow;
-
-public class RumbleCommands {
-    public static Command rumbleLight(ControllerRumble controller) {
-        return run(() -> controller.setRumbleLight(0.5), controller);
+object RumbleCommands {
+    fun rumbleLight(controller: ControllerRumble): Command {
+        return Commands.run({ controller.setRumbleLight(0.5) }, controller)
     }
 
-    public static Command rumbleLightWithFalloff(ControllerRumble controller) {
-        return RumbleCommands.rumbleLightWithFalloff(controller, 40.0);
+    fun rumbleLightWithFalloff(controller: ControllerRumble): Command {
+        return rumbleLightWithFalloff(controller, 40.0)
     }
 
-    public static Command rumbleLightWithFalloff(ControllerRumble controller, double falloffStrength) {
-        var c = 0.025;
-        var n = max(falloffStrength, 2);
-        var offset = (pow(c, (-1) / (-n - 1)) * pow(1 / n, (-1) / (-n - 1)));
-        var timer = new Timer();
-        return run(() -> {
-            var elapsed = timer.get();
-            var strength = 1 / (pow(elapsed + offset, n) + 1);
-            controller.setRumbleLight(strength);
-        }, controller).beforeStarting(timer::restart);
+    private fun rumbleLightWithFalloff(controller: ControllerRumble, falloffStrength: Double): Command {
+        val c: Double = 0.025
+        val n: Double = max(falloffStrength, 2.0)
+        val offset: Double = (c.pow((-1) / (-n - 1)) * (1 / n).pow((-1) / (-n - 1)))
+        val timer: Timer = Timer()
+        return Commands.run({
+            val elapsed: Double = timer.get()
+            val strength: Double = 1 / ((elapsed + offset).pow(n) + 1)
+            controller.setRumbleLight(strength)
+        }, controller).beforeStarting({ timer.restart() })
     }
 
-    public static Command noRumble(ControllerRumble controller) {
-        return run(() -> controller.setRumbleLight(0.0), controller);
+    fun noRumble(controller: ControllerRumble): Command {
+        return Commands.run({ controller.setRumbleLight(0.0) }, controller)
     }
 }

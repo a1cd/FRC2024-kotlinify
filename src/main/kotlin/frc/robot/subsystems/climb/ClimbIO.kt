@@ -1,35 +1,44 @@
-package frc.robot.subsystems.climb;
+package frc.robot.subsystems.climb
 
-import org.littletonrobotics.junction.AutoLog;
+import org.littletonrobotics.junction.AutoLog
 
-public interface ClimbIO {
+interface ClimbIO {
+    /** Updates the set of loggable inputs.  */
+    fun updateInputs(inputs: ClimbIOInputs) {}
 
-  /** Updates the set of loggable inputs. */
-  default void updateInputs(ClimbIOInputs inputs) {}
+    /** Run open loop at the specified voltage.  */
+    fun setLeftVoltage(volts: Double) {}
 
-  /** Run open loop at the specified voltage. */
-  default void setLeftVoltage(double volts) {}
+    fun setRightVoltage(volts: Double) {}
 
-  default void setRightVoltage(double volts) {}
+    /** Stop in open loop.  */
+    fun leftStop() {}
 
-  /** Stop in open loop. */
-  public default void leftStop() {}
+    /** Stop in open loop.  */
+    fun rightStop() {}
 
-  /** Stop in open loop. */
-  public default void rightStop() {}
+    @AutoLog
+    class ClimbIOInputs {
+        @JvmField
+        var leftPositionRad: Double = 0.0
+        @JvmField
+        var leftVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var leftAppliedVolts: Double = 0.0
+        @JvmField
+        var leftCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var leftTemperature: DoubleArray = doubleArrayOf()
 
-  @AutoLog
-  public static class ClimbIOInputs {
-    public double leftPositionRad = 0.0;
-    public double leftVelocityRadPerSec = 0.0;
-    public double leftAppliedVolts = 0.0;
-    public double[] leftCurrentAmps = new double[] {};
-    public double[] leftTemperature = new double[] {};
-
-    public double rightPositionRad = 0.0;
-    public double rightVelocityRadPerSec = 0.0;
-    public double rightAppliedVolts = 0.0;
-    public double[] rightCurrentAmps = new double[] {};
-    public double[] rightTemperature = new double[] {};
-  }
+        @JvmField
+        var rightPositionRad: Double = 0.0
+        @JvmField
+        var rightVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var rightAppliedVolts: Double = 0.0
+        @JvmField
+        var rightCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var rightTemperature: DoubleArray = doubleArrayOf()
+    }
 }

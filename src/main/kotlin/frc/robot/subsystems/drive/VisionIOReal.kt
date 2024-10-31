@@ -1,27 +1,18 @@
-package frc.robot.subsystems.drive;
+package frc.robot.subsystems.drive
 
-import org.photonvision.PhotonCamera;
-import org.photonvision.PhotonUtils;
-import org.photonvision.proto.Photon;
-import org.photonvision.simulation.SimCameraProperties;
+import frc.robot.subsystems.drive.VisionIO.VisionIOInputs
+import org.photonvision.PhotonCamera
 
-public class VisionIOReal implements VisionIO {
-
-  private final PhotonCamera cam;
-
-  public VisionIOReal(String cameraName) {
-
+class VisionIOReal(cameraName: String?) : VisionIO {
     // Update with camera name
-    cam = new PhotonCamera(cameraName);
-  }
+    private val cam: PhotonCamera = PhotonCamera(cameraName)
 
-  @Override
-  public void updateInputs(VisionIOInputs inputs) {
-    inputs.cameraResult = cam.getLatestResult();
-    inputs.latencyMillis = cam.getLatestResult().getLatencyMillis();
-    inputs.driverMode = cam.getDriverMode();
-    inputs.timestampSeconds = cam.getLatestResult().getTimestampSeconds();
-    inputs.connected = cam.isConnected();
-    inputs.name = cam.getName();
-  }
+    override fun updateInputs(inputs: VisionIOInputs) {
+        inputs.cameraResult = cam.latestResult
+        inputs.latencyMillis = cam.latestResult.latencyMillis
+        inputs.driverMode = cam.driverMode
+        inputs.timestampSeconds = cam.latestResult.timestampSeconds
+        inputs.connected = cam.isConnected
+        inputs.name = cam.name
+    }
 }

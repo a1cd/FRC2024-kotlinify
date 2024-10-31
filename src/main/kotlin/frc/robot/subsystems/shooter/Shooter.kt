@@ -10,307 +10,299 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.shooter
 
-package frc.robot.subsystems.shooter;
+import edu.wpi.first.math.MathUtil
+import edu.wpi.first.math.controller.PIDController
+import edu.wpi.first.math.controller.ProfiledPIDController
+import edu.wpi.first.math.controller.SimpleMotorFeedforward
+import edu.wpi.first.math.geometry.Rotation2d
+import edu.wpi.first.math.trajectory.TrapezoidProfile
+import edu.wpi.first.math.util.Units
+import edu.wpi.first.units.*
+import edu.wpi.first.wpilibj.RobotState
+import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d
+import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d
+import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d
+import edu.wpi.first.wpilibj2.command.SubsystemBase
+import frc.robot.Constants
+import org.littletonrobotics.junction.AutoLogOutput
+import org.littletonrobotics.junction.Logger
+import kotlin.math.abs
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.ProfiledPIDController;
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.*;
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants;
-import org.littletonrobotics.junction.AutoLogOutput;
-import org.littletonrobotics.junction.Logger;
+class Shooter(private val shooterIO: ShooterIO, private val hoodIO: HoodIO) : SubsystemBase() {
+    private val shooterInputs = ShooterIOInputsAutoLogged()
+    private val hoodInputs = HoodIOInputsAutoLogged()
+    private var shooterVelocityFB: PIDController? = null
+    private var setpointRadPS: Double = 0.0
+    private var hoodFB: ProfiledPIDController? = null
+    private var shooterVelocityFF: SimpleMotorFeedforward? = null
+    private var characterizeMode = false
+    private var mech1: Mechanism2d = Mechanism2d(3.0, 3.0)
+    var root: MechanismRoot2d = mech1.getRoot("shooter", 0.0, 0.0)
+    private var sState: MechanismLigament2d = root.append(MechanismLigament2d("shooter", 0.14, -90.0))
 
-import static edu.wpi.first.units.Units.*;
-import static edu.wpi.first.wpilibj.RobotState.isDisabled;
+    private var hoodOffsetAngle = Rotation2d()
 
-public class Shooter extends SubsystemBase {
-    // the ratio for turning the shooter
-//    private static final double TURN_SHOOTER_RATIO = 5.4;
-    private static double targetHoodAngleRad = 0.0;
-    private final ShooterIO shooterIO;
-    private final HoodIO hoodIO;
-    private final ShooterIOInputsAutoLogged shooterInputs = new ShooterIOInputsAutoLogged();
-    private final HoodIOInputsAutoLogged hoodInputs = new HoodIOInputsAutoLogged();
-    private PIDController shooterVelocityFB;
-    double setpointRadPS = 0;
-    private ProfiledPIDController hoodFB;
-    private SimpleMotorFeedforward shooterVelocityFF;
-    private boolean characterizeMode = false;
-    Mechanism2d mech1 = new Mechanism2d(3, 3);
-    MechanismRoot2d root = mech1.getRoot("shooter", 0, 0);
-    MechanismLigament2d sState = root.append(new MechanismLigament2d("shooter", 0.14, -90.0));
+    private var hasZeroed = false
 
-    private Rotation2d hoodOffsetAngle = new Rotation2d();
-
-    private boolean hasZeroed = false;
-
-    public boolean hasZeroed() {
-        return hasZeroed;
+    fun hasZeroed(): Boolean {
+        return hasZeroed
     }
 
-    public void setHasZeroed(boolean hasZeroed) {
-        this.hasZeroed = hasZeroed;
+    fun setHasZeroed(hasZeroed: Boolean) {
+        this.hasZeroed = hasZeroed
     }
 
-    public boolean getLimitSwitch() {
-        return hoodInputs.islimitSwitchPressed;
+    val limitSwitch: Boolean
+        get() = hoodInputs.islimitSwitchPressed
+
+    private var hasReset = false
+    private var hoodPIDEnabled = true
+
+    fun setHoodPIDEnabled(hoodPIDEnabled: Boolean) {
+        this.hoodPIDEnabled = hoodPIDEnabled
     }
 
-    private boolean hasReset = false;
-    private boolean hoodPIDEnabled = true;
+    private var previousAnglularVelocity: Double = 0.0
 
-    public void setHoodPIDEnabled(boolean hoodPIDEnabled) {
-        this.hoodPIDEnabled = hoodPIDEnabled;
+    private var lastLimitSwitch = true
+
+    var zeroMode: Boolean = false
+
+    override fun periodic() {
+        if (this.currentCommand != null) {
+            Logger.recordOutput("Commands/Shooter", this.currentCommand.name)
+        } else {
+            Logger.recordOutput("Commands/Shooter", "")
+        }
+        shooterIO.updateInputs(shooterInputs)
+        Logger.processInputs("Shooter/Flywheel", shooterInputs)
+
+        hoodIO.updateInputs(hoodInputs)
+        Logger.processInputs("Shooter/Hood", hoodInputs)
+
+
+        if (!hasReset) {
+            resetToStartingAngle()
+            hoodFB!!.reset(hoodInputs.motorPositionRad - hoodOffsetAngle.radians)
+            hasReset = true
+        }
+
+        if (!characterizeMode || setpointRadPS != 0.0) {
+            if (setpointRadPS == 0.0) shooterIO.setFlywheelVoltage(0.0)
+            else shooterIO.setFlywheelVoltage(
+                shooterVelocityFB!!.calculate(shooterInputs.flywheelVelocityRadPerSec, setpointRadPS)
+                        + shooterVelocityFF!!.calculate(shooterVelocityFB.setpoint)
+            )
+        } else if (setpointRadPS == 0.0) shooterIO.setFlywheelVoltage(0.0)
+        val currentCommand = currentCommand
+        if (currentCommand != null) Logger.recordOutput("Shooter/Current Command", currentCommand.name)
+        else Logger.recordOutput("Shooter/Current Command", "null")
+        Logger.recordOutput("Shooter/Shooter Speed", setpointRadPS)
+        Logger.recordOutput("Shooter/Hood/Target Hood Angle", targetHoodAngleRad)
+        Logger.recordOutput(
+            "Shooter/Hood/Inputs/Offset Motor Position Radians",
+            hoodInputs.motorPositionRad - hoodOffsetAngle.radians
+        )
+        Logger.recordOutput("Shooter/Hood/Offset Radians", hoodOffsetAngle.radians)
+        Logger.recordOutput("Shooter/Hood/Beam Break Status", hoodInputs.islimitSwitchPressed)
+
+        previousAnglularVelocity = hoodInputs.hoodVelocityRadPerSec
+        if (previousAnglularVelocity != 0.0) Logger.recordOutput(
+            "Shooter/Hood Acceleration",
+            edu.wpi.first.units.Units.RadiansPerSecond.of(previousAnglularVelocity - hoodInputs.hoodVelocityRadPerSec)
+                .per(edu.wpi.first.units.Units.Seconds.of(0.02))
+        )
+        if (hoodPIDEnabled) {
+            hoodIO.setVoltage(
+                hoodFB!!.calculate(hoodInputs.motorPositionRad - hoodOffsetAngle.radians, targetHoodAngleRad)
+            )
+        }
+        sState.angle = hoodInputs.hoodPositionRad
+        Logger.recordOutput("Shooter/Mechanism", mech1)
+
+        // Let the hood move more easily while disabled so that we don't skip gears as much
+        hoodIO.setBrakeMode(RobotState.isDisabled() && (abs(shooterInputs.flywheelVelocityRadPerSec) < 1000))
+
+        if (hoodInputs.islimitSwitchPressed != lastLimitSwitch) {
+            lastLimitSwitch = hoodInputs.islimitSwitchPressed
+            // only do it during these times to prevent arbitrary zero events
+            if (zeroMode || RobotState.isDisabled()) resetToLimitAngle()
+        }
     }
 
-    double previousAnglularVelocity = 0.0;
+    private fun resetToLimitAngle() {
+        hoodOffsetAngle = Rotation2d(hoodInputs.motorPositionRad - (1.98875))
+        hoodFB!!.reset(hoodInputs.motorPositionRad - (1.98875 + .16))
+    }
 
-    private boolean lastLimitSwitch = true;
+    private fun resetToStartingAngle() {
+        hoodOffsetAngle = Rotation2d(hoodInputs.motorPositionRad - 1.98542)
+        hoodFB!!.reset(hoodInputs.motorPositionRad - hoodOffsetAngle.radians)
+    }
+
+    fun resetWhileZeroing() {
+        hoodOffsetAngle = Rotation2d(hoodInputs.motorPositionRad - (2.225))
+        hoodFB!!.reset(hoodInputs.motorPositionRad - hoodOffsetAngle.radians)
+    }
+
+    private var hoodOverride: Boolean = true
 
     /**
      * Creates a new Shooter.
      */
-    public Shooter(ShooterIO io, HoodIO hoodIO) {
-        this.shooterIO = io;
-        this.hoodIO = hoodIO;
-        sState.setLength(0.14); //im not sure if this should be here
+    init {
+        sState.length = 0.14 //im not sure if this should be here
 
         // Switch constants based on mode (the physics simulator is treated as a
         // separate robot with different tuning)
-        switch (Constants.currentMode) {
-            case REAL:
-                hoodFB = new ProfiledPIDController(6.0, 0.0, .25, new TrapezoidProfile.Constraints(1000.0 / 2.0, 7600.0 / 32.0));
-                hoodFB.setTolerance(0.025);
+        when (Constants.currentMode) {
+            Constants.Mode.REAL -> {
+                hoodFB = ProfiledPIDController(6.0, 0.0, .25, TrapezoidProfile.Constraints(1000.0 / 2.0, 7600.0 / 32.0))
+                hoodFB.setTolerance(0.025)
                 shooterVelocityFB =
-                        new PIDController(0.0079065 * 5, 0.0015, 0.0);
-                shooterVelocityFB.setIZone(2);
-                shooterVelocityFB.setTolerance(218.69 * .25); // this is the pid max velocity error (rad/sec)
-                shooterVelocityFF = new SimpleMotorFeedforward(.58287, .013052, .0038592);
-                break;
-            case REPLAY:
-                hoodFB = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(1, 2));
+                    PIDController(0.0079065 * 5, 0.0015, 0.0)
+                shooterVelocityFB.setIZone(2.0)
+                shooterVelocityFB.setTolerance(218.69 * .25) // this is the pid max velocity error (rad/sec)
+                shooterVelocityFF = SimpleMotorFeedforward(.58287, .013052, .0038592)
+            }
+
+            Constants.Mode.REPLAY -> {
+                hoodFB = ProfiledPIDController(4.0, 0.0, 0.0, TrapezoidProfile.Constraints(1.0, 2.0))
 
                 shooterVelocityFB =
-                        new PIDController(0.0050812, 0.0, 0.0 /*, new TrapezoidProfile.Constraints(0.5, 99)*/);
-                shooterVelocityFB.setTolerance(25);
-                shooterVelocityFF = new SimpleMotorFeedforward(0.10548, 0.11959, 0.066251);
-                break;
-            case SIM:
+                    PIDController(0.0050812, 0.0, 0.0 /*, new TrapezoidProfile.Constraints(0.5, 99)*/)
+                shooterVelocityFB.setTolerance(25.0)
+                shooterVelocityFF = SimpleMotorFeedforward(0.10548, 0.11959, 0.066251)
+            }
+
+            Constants.Mode.SIM -> {
                 shooterVelocityFB =
-                        new PIDController(0.5, 0.0, 0.0 /*, new TrapezoidProfile.Constraints(0.5, 99)*/);
-                hoodFB = new ProfiledPIDController(4.0, 0.0, 0.0, new TrapezoidProfile.Constraints(1, 2));
-                shooterVelocityFF = new SimpleMotorFeedforward(0, 0);
-                break;
-            default:
-                break;
+                    PIDController(0.5, 0.0, 0.0 /*, new TrapezoidProfile.Constraints(0.5, 99)*/)
+                hoodFB = ProfiledPIDController(4.0, 0.0, 0.0, TrapezoidProfile.Constraints(1.0, 2.0))
+                shooterVelocityFF = SimpleMotorFeedforward(0.0, 0.0)
+            }
+
+            else -> {}
         }
     }
 
-    public boolean zeroMode = false;
-
-    @Override
-    public void periodic() {
-        if(this.getCurrentCommand() != null) {
-            Logger.recordOutput("Commands/Shooter", this.getCurrentCommand().getName());
-        } else {
-            Logger.recordOutput("Commands/Shooter", "");
-        }
-        shooterIO.updateInputs(shooterInputs);
-        Logger.processInputs("Shooter/Flywheel", shooterInputs);
-
-        hoodIO.updateInputs(hoodInputs);
-        Logger.processInputs("Shooter/Hood", hoodInputs);
-
-
-        if (!hasReset) {
-            resetToStartingAngle();
-            hoodFB.reset(hoodInputs.motorPositionRad - hoodOffsetAngle.getRadians());
-            hasReset = true;
-        }
-
-        if (!characterizeMode || setpointRadPS != 0.0) {
-            if (setpointRadPS == 0.0) shooterIO.setFlywheelVoltage(0.0);
-            else
-                shooterIO.setFlywheelVoltage(
-                        shooterVelocityFB.calculate(shooterInputs.flywheelVelocityRadPerSec, setpointRadPS)
-                                + this.shooterVelocityFF.calculate(shooterVelocityFB.getSetpoint()));
-        } else if (setpointRadPS == 0.0) shooterIO.setFlywheelVoltage(0.0);
-        Command currentCommand = getCurrentCommand();
-        if (currentCommand != null)
-            Logger.recordOutput("Shooter/Current Command", currentCommand.getName());
-        else Logger.recordOutput("Shooter/Current Command", "null");
-        Logger.recordOutput("Shooter/Shooter Speed", setpointRadPS);
-        Logger.recordOutput("Shooter/Hood/Target Hood Angle", targetHoodAngleRad);
-        Logger.recordOutput("Shooter/Hood/Inputs/Offset Motor Position Radians", hoodInputs.motorPositionRad - hoodOffsetAngle.getRadians());
-        Logger.recordOutput("Shooter/Hood/Offset Radians", hoodOffsetAngle.getRadians());
-        Logger.recordOutput("Shooter/Hood/Beam Break Status", hoodInputs.islimitSwitchPressed);
-
-        previousAnglularVelocity = hoodInputs.hoodVelocityRadPerSec;
-        if (previousAnglularVelocity != 0.0)
-            Logger.recordOutput(
-                    "Shooter/Hood Acceleration",
-                    RadiansPerSecond.of(previousAnglularVelocity - hoodInputs.hoodVelocityRadPerSec).per(Seconds.of(0.02)));
-        if (hoodPIDEnabled) {
-            hoodIO.setVoltage(
-                    hoodFB.calculate(hoodInputs.motorPositionRad - hoodOffsetAngle.getRadians(), targetHoodAngleRad)
-            );
-        }
-        sState.setAngle(hoodInputs.hoodPositionRad);
-        Logger.recordOutput("Shooter/Mechanism", mech1);
-
-        // Let the hood move more easily while disabled so that we don't skip gears as much
-        hoodIO.setBrakeMode(isDisabled() && (Math.abs(shooterInputs.flywheelVelocityRadPerSec) < 1000));
-
-        if (hoodInputs.islimitSwitchPressed != lastLimitSwitch) {
-            lastLimitSwitch = hoodInputs.islimitSwitchPressed;
-            // only do it during these times to prevent arbitrary zero events
-            if (zeroMode || isDisabled())
-                resetToLimitAngle();
-        }
+    fun overrideHoodAtSetpoint(isAtSetpoint: Boolean) {
+        hoodOverride = isAtSetpoint
     }
 
-    public void resetToLimitAngle(){
-        hoodOffsetAngle = new Rotation2d(hoodInputs.motorPositionRad - (1.98875));
-        hoodFB.reset(hoodInputs.motorPositionRad - (1.98875+.16));
-    }
+    val isStalled: Boolean
+        get() = hoodInputs.isStalled
 
-    public void resetToStartingAngle() {
-        hoodOffsetAngle = new Rotation2d(hoodInputs.motorPositionRad - 1.98542);
-        hoodFB.reset(hoodInputs.motorPositionRad - hoodOffsetAngle.getRadians());
-    }
-
-    public void resetWhileZeroing() {
-        hoodOffsetAngle = new Rotation2d(hoodInputs.motorPositionRad - (2.225));
-        hoodFB.reset(hoodInputs.motorPositionRad - hoodOffsetAngle.getRadians());
-    }
-
-    boolean hoodOverride = true;
-
-    public void overrideHoodAtSetpoint(boolean isAtSetpoint) {
-        hoodOverride = isAtSetpoint;
-    }
-
-    public boolean isStalled() {
-        return hoodInputs.isStalled;
+    @AutoLogOutput
+    fun flywheelAtSetpoint(): Boolean {
+        return shooterVelocityFB!!.atSetpoint()
     }
 
     @AutoLogOutput
-    public boolean flywheelAtSetpoint() {
-        return this.shooterVelocityFB.atSetpoint();
+    fun hoodAtSetpoint(): Boolean {
+        return hoodFB!!.atGoal() && hoodOverride
     }
 
     @AutoLogOutput
-    public boolean hoodAtSetpoint() {
-        return this.hoodFB.atGoal() && hoodOverride;
+    fun allAtSetpoint(): Boolean {
+        return flywheelAtSetpoint() && hoodAtSetpoint()
     }
 
-    @AutoLogOutput
-    public boolean allAtSetpoint() {
-        return flywheelAtSetpoint() && hoodAtSetpoint();
-    }
-
-    public void setCharacterizeMode(boolean on) {
-        characterizeMode = on;
+    fun setCharacterizeMode(on: Boolean) {
+        characterizeMode = on
     }
 
     /**
      * Run open loop at the specified voltage.
      */
-    public void shooterRunVolts(Measure<Voltage> voltage) {
-        shooterIO.setFlywheelVoltage(voltage.in(Volts));
+    fun shooterRunVolts(voltage: Measure<Voltage?>) {
+        shooterIO.setFlywheelVoltage(voltage.`in`(edu.wpi.first.units.Units.Volts))
     }
 
-    public Measure<Voltage> getCharacterizationAppliedVolts() {
-        return Volts.of(this.shooterInputs.flywheelAppliedVolts);
-    }
+    val characterizationAppliedVolts: Measure<Voltage>
+        get() = edu.wpi.first.units.Units.Volts.of(shooterInputs.flywheelAppliedVolts)
 
-    public void hoodRunVolts(double volts) {
-        hoodIO.setVoltage(volts);
+    fun hoodRunVolts(volts: Double) {
+        hoodIO.setVoltage(volts)
     }
 
     /**
      * Run closed loop at the specified velocity.
      */
-    public void shooterRunVelocity(double velocityRPM) {
-        var velocityRadPerSec = Units.rotationsPerMinuteToRadiansPerSecond(velocityRPM);
+    fun shooterRunVelocity(velocityRPM: Double) {
+        val velocityRadPerSec = Units.rotationsPerMinuteToRadiansPerSecond(velocityRPM)
 
-        setpointRadPS = velocityRadPerSec;
+        setpointRadPS = velocityRadPerSec
 
         // Log flywheel setpoint
-        Logger.recordOutput("Shooter/SetpointRPM", velocityRPM);
+        Logger.recordOutput("Shooter/SetpointRPM", velocityRPM)
     }
 
     /**
      * Stops the flywheel.
      */
-    public void stopShooter() {
-        shooterIO.flywheelStop();
+    fun stopShooter() {
+        shooterIO.flywheelStop()
     }
 
-    public void stopHood() {
-        hoodIO.wristStop();
+    fun stopHood() {
+        hoodIO.wristStop()
     }
 
-    /**
-     * Returns the current velocity in RPM.
-     */
-    @AutoLogOutput
-    public double getShooterVelocityRPM() {
-        return Units.radiansPerSecondToRotationsPerMinute(shooterInputs.flywheelVelocityRadPerSec);
+    @get:AutoLogOutput
+    val shooterVelocityRPM: Double
+        /**
+         * Returns the current velocity in RPM.
+         */
+        get() = Units.radiansPerSecondToRotationsPerMinute(shooterInputs.flywheelVelocityRadPerSec)
+
+    val characterizationVelocity: Measure<Velocity<Angle>>
+        /**
+         * Returns the current velocity in radians per second.
+         */
+        get() = edu.wpi.first.units.Units.RadiansPerSecond.of(shooterInputs.flywheelVelocityRadPerSec)
+
+    val characterizationPosition: Measure<Angle>
+        /**
+         * Returns the current velocity in radians per second.
+         */
+        get() = edu.wpi.first.units.Units.Radians.of(shooterInputs.flywheelPositionRad)
+
+    val characterizationCurrent: Measure<Current>
+        /**
+         * Returns the current velocity in radians per second.
+         */
+        get() {
+            var sum = 0.0
+            for (flywheelCurrentAmp in shooterInputs.flywheelCurrentAmps) sum += flywheelCurrentAmp
+
+            sum =
+                if ((shooterInputs.flywheelCurrentAmps.size > 0)) sum / shooterInputs.flywheelCurrentAmps.size else 0.0
+            return edu.wpi.first.units.Units.Amps.of(sum)
+        }
+
+    fun setTargetShooterAngle(angle: Rotation2d) {
+        targetHoodAngleRad = MathUtil.clamp(angle.radians, -2.0, 2.0)
     }
 
-    /**
-     * Returns the current velocity in radians per second.
-     */
-    public Measure<Velocity<Angle>> getCharacterizationVelocity() {
-        return RadiansPerSecond.of(shooterInputs.flywheelVelocityRadPerSec);
+    val hoodCharacterizationVoltage: Measure<Voltage>
+        get() = edu.wpi.first.units.Units.Volts.of(hoodInputs.hoodAppliedVolts)
+
+    val hoodCharacterizationPosition: Measure<Angle>
+        get() = edu.wpi.first.units.Units.Radians.of(hoodInputs.hoodPositionRad)
+
+    val hoodCharacterizationVelocity: Measure<Velocity<Angle>>
+        get() = edu.wpi.first.units.Units.RadiansPerSecond.of(hoodInputs.hoodVelocityRadPerSec)
+
+    fun runHoodVoltage(voltageMeasure: Measure<Voltage?>) {
+        hoodRunVolts(voltageMeasure.`in`(edu.wpi.first.units.Units.Volts))
     }
 
-    /**
-     * Returns the current velocity in radians per second.
-     */
-    public Measure<Angle> getCharacterizationPosition() {
-        return Radians.of(shooterInputs.flywheelPositionRad);
-    }
-
-    /**
-     * Returns the current velocity in radians per second.
-     */
-    public Measure<Current> getCharacterizationCurrent() {
-        var sum = 0.0;
-        for (double flywheelCurrentAmp : shooterInputs.flywheelCurrentAmps) sum += flywheelCurrentAmp;
-
-        sum = (shooterInputs.flywheelCurrentAmps.length > 0) ? sum / shooterInputs.flywheelCurrentAmps.length : 0.0;
-        return Amps.of(sum);
-    }
-
-    public void setTargetShooterAngle(Rotation2d angle) {
-        targetHoodAngleRad = MathUtil.clamp(angle.getRadians(), -2, 2);
-    }
-
-    public Measure<Voltage> getHoodCharacterizationVoltage() {
-        return Volts.of(hoodInputs.hoodAppliedVolts);
-    }
-
-    public Measure<Angle> getHoodCharacterizationPosition() {
-        return Radians.of(hoodInputs.hoodPositionRad);
-    }
-
-    public Measure<Velocity<Angle>> getHoodCharacterizationVelocity() {
-        return RadiansPerSecond.of(hoodInputs.hoodVelocityRadPerSec);
-    }
-
-    public void runHoodVoltage(Measure<Voltage> voltageMeasure) {
-        hoodRunVolts(voltageMeasure.in(Volts));
+    companion object {
+        // the ratio for turning the shooter
+        //    private static final double TURN_SHOOTER_RATIO = 5.4;
+        private var targetHoodAngleRad = 0.0
     }
 }

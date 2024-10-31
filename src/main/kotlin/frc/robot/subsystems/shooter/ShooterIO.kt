@@ -10,30 +10,37 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.shooter
 
-package frc.robot.subsystems.shooter;
+import org.littletonrobotics.junction.AutoLog
 
-import org.littletonrobotics.junction.AutoLog;
+interface ShooterIO {
+    @AutoLog
+    class ShooterIOInputs {
+        @JvmField
+        var flywheelPositionRad: Double = 0.0
+        @JvmField
+        var flywheelVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var flywheelAppliedVolts: Double = 0.0
+        @JvmField
+        var flywheelVoltages: DoubleArray = doubleArrayOf()
+        @JvmField
+        var flywheelCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var flywheelTemperature: DoubleArray = doubleArrayOf()
+        @JvmField
+        var flywheelAncillaryTemperature: DoubleArray = doubleArrayOf()
+        @JvmField
+        var flywheelProcessorTemperature: DoubleArray = doubleArrayOf()
+    }
 
-public interface ShooterIO {
-  @AutoLog
-  public static class ShooterIOInputs {
-    public double flywheelPositionRad = 0.0;
-    public double flywheelVelocityRadPerSec = 0.0;
-    public double flywheelAppliedVolts = 0.0;
-    public double[] flywheelVoltages = new double[]{};
-    public double[] flywheelCurrentAmps = new double[] {};
-    public double[] flywheelTemperature = new double[] {};
-    public double[] flywheelAncillaryTemperature = new double[]{};
-    public double[] flywheelProcessorTemperature = new double[]{};
-  }
+    /** Updates the set of loggable inputs.  */
+    fun updateInputs(inputs: ShooterIOInputs) {}
 
-  /** Updates the set of loggable inputs. */
-  public default void updateInputs(ShooterIOInputs inputs) {}
+    /** Run open loop at the specified voltage.  */
+    fun setFlywheelVoltage(volts: Double) {}
 
-  /** Run open loop at the specified voltage. */
-  public default void setFlywheelVoltage(double volts) {}
-
-  /** Stop in open loop. */
-  public default void flywheelStop() {}
+    /** Stop in open loop.  */
+    fun flywheelStop() {}
 }

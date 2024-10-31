@@ -1,29 +1,36 @@
+package frc.robot.subsystems.shooter
 
-package frc.robot.subsystems.shooter;
+import org.littletonrobotics.junction.AutoLog
 
-import org.littletonrobotics.junction.AutoLog;
+interface HoodIO {
+    /** Updates the set of loggable inputs.  */
+    fun updateInputs(inputs: HoodIOInputs) {}
 
-public interface HoodIO {
-  /** Updates the set of loggable inputs. */
-  public default void updateInputs(HoodIOInputs inputs) {}
+    @AutoLog
+    class HoodIOInputs {
+        @JvmField
+        var motorPositionRad: Double = 0.0
+        @JvmField
+        var hoodPositionRad: Double = 0.0
+        @JvmField
+        var hoodVelocityRadPerSec: Double = 0.0
+        @JvmField
+        var hoodAppliedVolts: Double = 0.0
+        @JvmField
+        var hoodCurrentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var hoodTemperature: DoubleArray = doubleArrayOf()
+        @JvmField
+        var isStalled: Boolean = false
+        @JvmField
+        var islimitSwitchPressed: Boolean = false
+    }
 
-  @AutoLog
-  public static class HoodIOInputs {
-    public double motorPositionRad = 0.0;
-    public double hoodPositionRad = 0.0;
-    public double hoodVelocityRadPerSec = 0.0;
-    public double hoodAppliedVolts = 0.0;
-    public double[] hoodCurrentAmps = new double[] {};
-    public double[] hoodTemperature = new double[] {};
-    public boolean isStalled = false;
-    public boolean islimitSwitchPressed;
-  }
+    /** Run open loop at the specified voltage.  */
+    fun setVoltage(volts: Double) {}
 
-  /** Run open loop at the specified voltage. */
-  public default void setVoltage(double volts) {}
+    /** Stop in open loop.  */
+    fun wristStop() {}
 
-  /** Stop in open loop. */
-  public default void wristStop() {}
-
-  public default void setBrakeMode(boolean enableBrakeMode) {}
+    fun setBrakeMode(enableBrakeMode: Boolean) {}
 }

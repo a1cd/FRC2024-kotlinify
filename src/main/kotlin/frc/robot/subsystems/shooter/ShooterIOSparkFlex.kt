@@ -10,56 +10,55 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.shooter
 
-package frc.robot.subsystems.shooter;
+import com.revrobotics.CANSparkFlex
+import com.revrobotics.CANSparkLowLevel
+import com.revrobotics.RelativeEncoder
+import edu.wpi.first.math.util.Units
+import frc.robot.subsystems.shooter.ShooterIO.ShooterIOInputs
 
-import com.revrobotics.CANSparkFlex;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.RelativeEncoder;
-import edu.wpi.first.math.util.Units;
+class ShooterIOSparkFlex : ShooterIO {
+    private val leader: CANSparkFlex = CANSparkFlex(0, CANSparkLowLevel.MotorType.kBrushless)
+    private val follower: CANSparkFlex = CANSparkFlex(1, CANSparkLowLevel.MotorType.kBrushless)
+    private val encoder: RelativeEncoder = leader.encoder
 
-public class ShooterIOSparkFlex implements ShooterIO {
-  private static final double GEAR_RATIO = 1.5;
+    init {
+        leader.restoreFactoryDefaults()
+        follower.restoreFactoryDefaults()
 
-  private final CANSparkFlex leader = new CANSparkFlex(0, MotorType.kBrushless);
-  private final CANSparkFlex follower = new CANSparkFlex(1, MotorType.kBrushless);
-  private final RelativeEncoder encoder = leader.getEncoder();
+        leader.setCANTimeout(250)
+        follower.setCANTimeout(250)
 
-  public ShooterIOSparkFlex() {
-    leader.restoreFactoryDefaults();
-    follower.restoreFactoryDefaults();
+        leader.inverted = false
+        follower.follow(leader, false)
 
-    leader.setCANTimeout(250);
-    follower.setCANTimeout(250);
+        leader.enableVoltageCompensation(12.0)
+        leader.setSmartCurrentLimit(30)
 
-    leader.setInverted(false);
-    follower.follow(leader, false);
+        leader.burnFlash()
+        follower.burnFlash()
+    }
 
-    leader.enableVoltageCompensation(12.0);
-    leader.setSmartCurrentLimit(30);
+    override fun updateInputs(inputs: ShooterIOInputs) {
+        inputs.flywheelVelocityRadPerSec =
+            Units.rotationsPerMinuteToRadiansPerSecond(encoder.velocity / GEAR_RATIO)
+        inputs.flywheelAppliedVolts = leader.appliedOutput * leader.busVoltage
+        inputs.flywheelCurrentAmps =
+            doubleArrayOf(leader.outputCurrent, follower.outputCurrent)
+        inputs.flywheelTemperature =
+            doubleArrayOf(leader.motorTemperature, follower.motorTemperature)
+    }
 
-    leader.burnFlash();
-    follower.burnFlash();
-  }
+    override fun setFlywheelVoltage(volts: Double) {
+        leader.setVoltage(volts)
+    }
 
-  @Override
-  public void updateInputs(ShooterIOInputs inputs) {
-    inputs.flywheelVelocityRadPerSec =
-        Units.rotationsPerMinuteToRadiansPerSecond(encoder.getVelocity() / GEAR_RATIO);
-    inputs.flywheelAppliedVolts = leader.getAppliedOutput() * leader.getBusVoltage();
-    inputs.flywheelCurrentAmps =
-        new double[] {leader.getOutputCurrent(), follower.getOutputCurrent()};
-    inputs.flywheelTemperature =
-        new double[] {leader.getMotorTemperature(), follower.getMotorTemperature()};
-  }
+    override fun flywheelStop() {
+        leader.stopMotor()
+    }
 
-  @Override
-  public void setFlywheelVoltage(double volts) {
-    leader.setVoltage(volts);
-  }
-
-  @Override
-  public void flywheelStop() {
-    leader.stopMotor();
-  }
+    companion object {
+        private const val GEAR_RATIO: Double = 1.5
+    }
 }

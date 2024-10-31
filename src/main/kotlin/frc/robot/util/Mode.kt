@@ -1,7 +1,7 @@
-package frc.robot.util;
+package frc.robot.util
 
-public enum Mode {
-  NEUTRAL,
-  AMP,
-  SPEAKER
+enum class Mode {
+    NEUTRAL,
+    AMP,
+    SPEAKER
 }

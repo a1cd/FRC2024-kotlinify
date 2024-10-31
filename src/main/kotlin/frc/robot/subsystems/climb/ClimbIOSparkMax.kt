@@ -10,73 +10,74 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.climb
 
-package frc.robot.subsystems.climb;
-
-import com.revrobotics.CANSparkBase;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.CANSparkMax;
-import com.revrobotics.RelativeEncoder;
-import edu.wpi.first.math.util.Units;
+import com.revrobotics.CANSparkBase.IdleMode
+import com.revrobotics.CANSparkLowLevel
+import com.revrobotics.CANSparkMax
+import com.revrobotics.RelativeEncoder
+import edu.wpi.first.math.util.Units
+import frc.robot.subsystems.climb.ClimbIO.ClimbIOInputs
 
 /**
  * NOTE: To use the Spark Flex / NEO Vortex, replace all instances of "CANSparkMax" with
  * "CANSparkFlex".
  */
-@SuppressWarnings("unused")
-public class ClimbIOSparkMax implements ClimbIO {
-  private static final double LEFT_GEAR_RATIO = 16.0;
-  private static final double RIGHT_GEAR_RATIO = 16.0;
+@Suppress("unused")
+class ClimbIOSparkMax : ClimbIO {
+    private val left: CANSparkMax = CANSparkMax(20, CANSparkLowLevel.MotorType.kBrushless)
+    private val right: CANSparkMax = CANSparkMax(13, CANSparkLowLevel.MotorType.kBrushless)
+    private val leftEncoder: RelativeEncoder = left.encoder
+    private val rightEncoder: RelativeEncoder = right.encoder
 
-  private final CANSparkMax left = new CANSparkMax(20, MotorType.kBrushless);
-  private final CANSparkMax right = new CANSparkMax(13, MotorType.kBrushless);
-  private final RelativeEncoder leftEncoder = left.getEncoder();
-  private final RelativeEncoder rightEncoder = right.getEncoder();
+    init {
+        left.restoreFactoryDefaults()
+        right.restoreFactoryDefaults()
 
-  public ClimbIOSparkMax() {
-    left.restoreFactoryDefaults();
-    right.restoreFactoryDefaults();
+        left.setCANTimeout(250)
+        right.setCANTimeout(250)
 
-    left.setCANTimeout(250);
-    right.setCANTimeout(250);
+        left.enableVoltageCompensation(12.0) // wait for electrical to do climb wiring
+        left.setSmartCurrentLimit(30) // wait for electrical to find the right breaker for the climb
 
-    left.enableVoltageCompensation(12.0); // wait for electrical to do climb wiring
-    left.setSmartCurrentLimit(30); // wait for electrical to find the right breaker for the climb
+        right.enableVoltageCompensation(12.0) // wait for electrical to do climb wiring
+        right.setSmartCurrentLimit(30) // wait for electrical to find the right breaker for the climb
 
-    right.enableVoltageCompensation(12.0); // wait for electrical to do climb wiring
-    right.setSmartCurrentLimit(30); // wait for electrical to find the right breaker for the climb
+        left.setIdleMode(IdleMode.kBrake)
+        right.setIdleMode(IdleMode.kBrake)
 
-    left.setIdleMode(CANSparkBase.IdleMode.kBrake);
-    right.setIdleMode(CANSparkBase.IdleMode.kBrake);
+        left.burnFlash()
+        right.burnFlash()
+    }
 
-    left.burnFlash();
-    right.burnFlash();
-  }
+    override fun updateInputs(inputs: ClimbIOInputs) {
+        inputs.leftPositionRad = Units.rotationsToRadians(leftEncoder.position / LEFT_GEAR_RATIO)
+        inputs.leftVelocityRadPerSec =
+            Units.rotationsPerMinuteToRadiansPerSecond(leftEncoder.velocity / LEFT_GEAR_RATIO)
+        inputs.leftAppliedVolts = left.appliedOutput * left.busVoltage
+        inputs.leftCurrentAmps = doubleArrayOf(left.outputCurrent)
+        inputs.leftTemperature = doubleArrayOf(left.motorTemperature)
+        inputs.rightPositionRad =
+            Units.rotationsToRadians(rightEncoder.position / RIGHT_GEAR_RATIO)
+        inputs.rightVelocityRadPerSec =
+            Units.rotationsPerMinuteToRadiansPerSecond(rightEncoder.velocity / RIGHT_GEAR_RATIO)
+        inputs.rightAppliedVolts = right.appliedOutput * right.busVoltage
+        inputs.rightCurrentAmps = doubleArrayOf(right.outputCurrent)
+        inputs.rightTemperature = doubleArrayOf(right.motorTemperature)
+    }
 
-  @Override
-  public void updateInputs(ClimbIOInputs inputs) {
-    inputs.leftPositionRad = Units.rotationsToRadians(leftEncoder.getPosition() / LEFT_GEAR_RATIO);
-    inputs.leftVelocityRadPerSec =
-        Units.rotationsPerMinuteToRadiansPerSecond(leftEncoder.getVelocity() / LEFT_GEAR_RATIO);
-    inputs.leftAppliedVolts = left.getAppliedOutput() * left.getBusVoltage();
-    inputs.leftCurrentAmps = new double[] {left.getOutputCurrent()};
-    inputs.leftTemperature = new double[] {left.getMotorTemperature()};
-    inputs.rightPositionRad =
-        Units.rotationsToRadians(rightEncoder.getPosition() / RIGHT_GEAR_RATIO);
-    inputs.rightVelocityRadPerSec =
-        Units.rotationsPerMinuteToRadiansPerSecond(rightEncoder.getVelocity() / RIGHT_GEAR_RATIO);
-    inputs.rightAppliedVolts = right.getAppliedOutput() * right.getBusVoltage();
-    inputs.rightCurrentAmps = new double[] {right.getOutputCurrent()};
-    inputs.rightTemperature = new double[] {right.getMotorTemperature()};
-  }
+    // sets the left motor voltage
+    override fun setLeftVoltage(volts: Double) {
+        left.setVoltage(volts)
+    }
 
-  // sets the left motor voltage
-  public void setLeftVoltage(double volts) {
-    left.setVoltage(volts);
-  }
+    // sets the right motor voltage
+    override fun setRightVoltage(volts: Double) {
+        right.setVoltage(volts)
+    }
 
-  // sets the right motor voltage
-  public void setRightVoltage(double volts) {
-    right.setVoltage(volts);
-  }
+    companion object {
+        private const val LEFT_GEAR_RATIO: Double = 16.0
+        private const val RIGHT_GEAR_RATIO: Double = 16.0
+    }
 }

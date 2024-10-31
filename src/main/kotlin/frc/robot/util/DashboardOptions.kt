@@ -1,5 +1,3 @@
-package frc.robot.util;
+package frc.robot.util
 
-public class DashboardOptions {
-
-}
+class DashboardOptions 

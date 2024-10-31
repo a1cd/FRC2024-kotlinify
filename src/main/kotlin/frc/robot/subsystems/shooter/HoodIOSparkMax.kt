@@ -1,88 +1,88 @@
-package frc.robot.subsystems.shooter;
+package frc.robot.subsystems.shooter
 
-import com.revrobotics.*;
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.DutyCycleEncoder;
-import org.littletonrobotics.junction.Logger;
+import com.revrobotics.*
+import com.revrobotics.CANSparkBase.IdleMode
+import edu.wpi.first.math.MathUtil
+import edu.wpi.first.wpilibj.DigitalInput
+import edu.wpi.first.wpilibj.DutyCycleEncoder
+import frc.robot.subsystems.shooter.HoodIO.HoodIOInputs
+import org.littletonrobotics.junction.Logger
 
-import java.util.Arrays;
+class HoodIOSparkMax : HoodIO {
+    private val leader: CANSparkMax = CANSparkMax(25, CANSparkLowLevel.MotorType.kBrushless)
 
-public class HoodIOSparkMax implements HoodIO {
-    private static final double GEAR_RATIO = 1.5;
-    private static final double MOTOR_TO_ROBOT = (1 / (36 * GEAR_RATIO)) * Math.PI * 2;
+    private val encoder: SparkAbsoluteEncoder = leader.getAbsoluteEncoder(SparkAbsoluteEncoder.Type.kDutyCycle)
 
-    private final CANSparkMax leader = new CANSparkMax(25, CANSparkLowLevel.MotorType.kBrushless);
+    private val absoluteEncoder: DutyCycleEncoder = DutyCycleEncoder(0)
 
-    private final SparkAbsoluteEncoder encoder =
-            leader.getAbsoluteEncoder(SparkAbsoluteEncoder.Type.kDutyCycle);
+    private val motorEncoder: RelativeEncoder = leader.encoder
+    var hasReset: Boolean = false
+    private var hoodLimitSwitch: DigitalInput = DigitalInput(5)
 
-    private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(0);
+    init {
+        val codes: Array<REVLibError?> = arrayOfNulls(11)
+        for (tries in 0..4) {
+            var a: Int = 0
+            codes[a++] = leader.restoreFactoryDefaults()
+            codes[a++] = leader.setCANTimeout(250)
+            leader.inverted = false
+            codes[a++] = leader.enableVoltageCompensation(12.0)
+            codes[a++] = leader.setSmartCurrentLimit(50)
 
-    private final RelativeEncoder motorEncoder = leader.getEncoder();
-    boolean hasReset = false;
-    DigitalInput hoodLimitSwitch = new DigitalInput(5);
+            codes[a++] = motorEncoder.setPositionConversionFactor(MOTOR_TO_ROBOT)
+            codes[a++] = motorEncoder.setVelocityConversionFactor(MOTOR_TO_ROBOT)
+            codes[a++] = motorEncoder.setPosition(encoder.position)
+            codes[a++] = encoder.setInverted(true)
 
-    public HoodIOSparkMax() {
-        REVLibError[] codes = new REVLibError[11];
-        for (int tries = 0; tries < 5; tries++) {
-            int a = 0;
-            codes[a++] = leader.restoreFactoryDefaults();
-            codes[a++] = leader.setCANTimeout(250);
-            leader.setInverted(false);
-            codes[a++] = leader.enableVoltageCompensation(12.0);
-            codes[a++] = leader.setSmartCurrentLimit(50);
+            codes[a++] = leader.burnFlash()
 
-            codes[a++] = motorEncoder.setPositionConversionFactor(MOTOR_TO_ROBOT);
-            codes[a++] = motorEncoder.setVelocityConversionFactor(MOTOR_TO_ROBOT);
-            codes[a++] = motorEncoder.setPosition(encoder.getPosition());
-            codes[a++] = encoder.setInverted(true);
-
-            codes[a++] = leader.burnFlash();
-
-            codes[a++] = motorEncoder.setPositionConversionFactor(MOTOR_TO_ROBOT);
-            codes[a++] = motorEncoder.setVelocityConversionFactor(MOTOR_TO_ROBOT);
-//            codes[a] = motorEncoder.setPosition(MathUtil.angleModulus(encoder.getPosition() * Math.PI * 2) / GEAR_RATIO);
-            boolean failed = false;
-            for (REVLibError code : codes) {
+            codes[a++] = motorEncoder.setPositionConversionFactor(MOTOR_TO_ROBOT)
+            codes[a++] = motorEncoder.setVelocityConversionFactor(MOTOR_TO_ROBOT)
+            //            codes[a] = motorEncoder.setPosition(MathUtil.angleModulus(encoder.getPosition() * Math.PI * 2) / GEAR_RATIO);
+            var failed: Boolean = false
+            for (code: REVLibError? in codes) {
                 if (code != REVLibError.kOk) {
-                    failed = true;
-                    System.out.println("an error occured while starting the motor");
-                    System.out.println(Arrays.deepToString(codes));
-                    System.out.println("waiting 1 second");
+                    failed = true
+                    println("an error occured while starting the motor")
+                    println(codes.contentDeepToString())
+                    println("waiting 1 second")
                     try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        System.out.println("an error occured while sleeping:");
-                        System.out.println(e);
+                        Thread.sleep(1000)
+                    } catch (e: InterruptedException) {
+                        println("an error occured while sleeping:")
+                        println(e)
                     }
                 }
             }
-            if (!failed) break;
+            if (!failed) break
         }
-        System.out.println("printing codes:");
-        System.out.println(Arrays.deepToString(codes));
-        System.out.println("finished printing codes.");
+        println("printing codes:")
+        println(codes.contentDeepToString())
+        println("finished printing codes.")
     }
 
-    public void updateInputs(HoodIOInputs inputs) {
-        inputs.isStalled = leader.getFault(CANSparkBase.FaultID.kStall);
-        inputs.hoodPositionRad = (absoluteEncoder.getAbsolutePosition() * Math.PI * 2) / GEAR_RATIO;
-        inputs.motorPositionRad = motorEncoder.getPosition();
-        inputs.hoodAppliedVolts = leader.getBusVoltage() * leader.getAppliedOutput();
-        inputs.hoodCurrentAmps = new double[]{leader.getOutputCurrent()};
-        inputs.hoodVelocityRadPerSec = (motorEncoder.getVelocity() * Math.PI * 2) / GEAR_RATIO;
-        inputs.hoodTemperature = new double[]{leader.getMotorTemperature()};
-        inputs.islimitSwitchPressed = hoodLimitSwitch.get();
+    override fun updateInputs(inputs: HoodIOInputs) {
+        inputs.isStalled = leader.getFault(CANSparkBase.FaultID.kStall)
+        inputs.hoodPositionRad = (absoluteEncoder.absolutePosition * Math.PI * 2) / GEAR_RATIO
+        inputs.motorPositionRad = motorEncoder.position
+        inputs.hoodAppliedVolts = leader.busVoltage * leader.appliedOutput
+        inputs.hoodCurrentAmps = doubleArrayOf(leader.outputCurrent)
+        inputs.hoodVelocityRadPerSec = (motorEncoder.velocity * Math.PI * 2) / GEAR_RATIO
+        inputs.hoodTemperature = doubleArrayOf(leader.motorTemperature)
+        inputs.islimitSwitchPressed = hoodLimitSwitch.get()
     }
 
-    public void setBrakeMode(boolean enable) {
-        leader.setIdleMode(enable ? CANSparkBase.IdleMode.kBrake : CANSparkBase.IdleMode.kCoast);
+    override fun setBrakeMode(enable: Boolean) {
+        leader.setIdleMode(if (enable) IdleMode.kBrake else IdleMode.kCoast)
     }
 
-    @Override
-    public void setVoltage(double volts) {
-        Logger.recordOutput("HoodVoltage", volts);
-        leader.setVoltage(MathUtil.clamp(volts, -5.0, 5.0));
+    override fun setVoltage(volts: Double) {
+        Logger.recordOutput("HoodVoltage", volts)
+        leader.setVoltage(MathUtil.clamp(volts, -5.0, 5.0))
+    }
+
+    companion object {
+        private const val GEAR_RATIO: Double = 1.5
+        private const val MOTOR_TO_ROBOT = (1 / (36 * GEAR_RATIO)) * Math.PI * 2
     }
 }

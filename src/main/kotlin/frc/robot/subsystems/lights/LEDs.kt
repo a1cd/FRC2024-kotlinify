@@ -1,39 +1,37 @@
-package frc.robot.subsystems.lights;
+package frc.robot.subsystems.lights
 
-import com.ctre.phoenix.led.CANdle;
-import com.ctre.phoenix.led.CANdleConfiguration;
-import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import com.ctre.phoenix.led.CANdle
+import com.ctre.phoenix.led.CANdleConfiguration
+import edu.wpi.first.wpilibj.RobotBase
+import edu.wpi.first.wpilibj2.command.SubsystemBase
 
+class LEDs : SubsystemBase() {
+    var candle: CANdle? = null
 
-public class LEDs extends SubsystemBase {
-    public static final int stripLength = 16;
-    public static final int stripCount = 4;
-    public static final int candleLength = 8; // 0-7
-    CANdle candle;
-    public LEDs() {
+    init {
         if (RobotBase.isReal()) {
-            candle = new CANdle(0);
-            candle.configFactoryDefault();
-            CANdleConfiguration config = new CANdleConfiguration();
-            config.disableWhenLOS = true;
-            config.statusLedOffWhenActive = true;
-            config.stripType = CANdle.LEDStripType.GRB;
-            config.brightnessScalar = 1.0;
-            config.v5Enabled = false;
-            config.enableOptimizations = true;
-            candle.configAllSettings(config);
-            for (int i = 0; i < candle.getMaxSimultaneousAnimationCount(); i++) {
-                candle.clearAnimation(i);
+            candle = CANdle(0)
+            candle!!.configFactoryDefault()
+            val config = CANdleConfiguration()
+            config.disableWhenLOS = true
+            config.statusLedOffWhenActive = true
+            config.stripType = CANdle.LEDStripType.GRB
+            config.brightnessScalar = 1.0
+            config.v5Enabled = false
+            config.enableOptimizations = true
+            candle!!.configAllSettings(config)
+            for (i in 0 until candle!!.maxSimultaneousAnimationCount) {
+                candle!!.clearAnimation(i)
             }
         }
     }
 
-    @Override
-    public void periodic() {
+    override fun periodic() {
     }
 
-    public CANdle getCandle() {
-        return candle;
+    companion object {
+        const val stripLength: Int = 16
+        const val stripCount: Int = 4
+        const val candleLength: Int = 8 // 0-7
     }
 }

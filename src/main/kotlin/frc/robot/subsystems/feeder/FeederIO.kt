@@ -1,29 +1,35 @@
-package frc.robot.subsystems.feeder;
+package frc.robot.subsystems.feeder
 
-import org.littletonrobotics.junction.AutoLog;
+import org.littletonrobotics.junction.AutoLog
 
-public interface FeederIO {
+interface FeederIO {
+    /** Updates the set of loggable inputs.  */
+    fun updateInputs(inputs: FeederIOInputs) {
+    }
 
-  /** Updates the set of loggable inputs. */
-  default void updateInputs(FeederIOInputs inputs) {
-  }
+    /** Run open loop at the specified voltage.  */
+    fun setVoltage(volts: Double) {
+    }
 
-  /** Run open loop at the specified voltage. */
-  default void setVoltage(double volts) {
-  }
+    /** Stop in open loop.  */
+    fun stop() {
+    }
 
-  /** Stop in open loop. */
-  default void stop() {
-  }
-
-  @AutoLog
-  class FeederIOInputs {
-    public boolean beamUnobstructed = false;
-    public double positionRad = 0.0;
-    public double velocityRadPerSec = 0.0;
-    public double appliedVolts = 0.0;
-    public double[] currentAmps = new double[] {};
-    public double[] temperature = new double[] {};
-    public boolean intakebeamUnobstructed;
-  }
+    @AutoLog
+    class FeederIOInputs {
+        @JvmField
+        var beamUnobstructed: Boolean = false
+        @JvmField
+        var positionRad: Double = 0.0
+        @JvmField
+        var velocityRadPerSec: Double = 0.0
+        @JvmField
+        var appliedVolts: Double = 0.0
+        @JvmField
+        var currentAmps: DoubleArray = doubleArrayOf()
+        @JvmField
+        var temperature: DoubleArray = doubleArrayOf()
+        @JvmField
+        var intakebeamUnobstructed: Boolean = false
+    }
 }

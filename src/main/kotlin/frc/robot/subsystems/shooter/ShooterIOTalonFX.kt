@@ -10,101 +10,101 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.shooter
 
-package frc.robot.subsystems.shooter;
+import com.ctre.phoenix6.BaseStatusSignal
+import com.ctre.phoenix6.StatusSignal
+import com.ctre.phoenix6.configs.TalonFXConfiguration
+import com.ctre.phoenix6.controls.Follower
+import com.ctre.phoenix6.controls.MusicTone
+import com.ctre.phoenix6.hardware.TalonFX
+import com.ctre.phoenix6.signals.NeutralModeValue
+import edu.wpi.first.math.util.Units
+import edu.wpi.first.units.Dimensionless
+import edu.wpi.first.units.Measure
+import edu.wpi.first.units.Velocity
+import frc.robot.subsystems.shooter.ShooterIO.ShooterIOInputs
 
-import com.ctre.phoenix6.BaseStatusSignal;
-import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.MusicTone;
-import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.signals.NeutralModeValue;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.Dimensionless;
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Velocity;
+class ShooterIOTalonFX : ShooterIO {
+    private val leader = TalonFX(40)
+    private val follower = TalonFX(41)
 
-import static edu.wpi.first.units.Units.Second;
-import static edu.wpi.first.units.Units.Value;
+    private val leaderPosition: StatusSignal<Double> = leader.position
+    private val leaderVelocity: StatusSignal<Double> = leader.velocity
+    private val leaderAppliedVolts: StatusSignal<Double> = leader.motorVoltage
+    private val leaderCurrent: StatusSignal<Double> = leader.statorCurrent
+    private val leaderDeviceTemp: StatusSignal<Double> = leader.deviceTemp
+    private val leaderAncillaryDeviceTemp: StatusSignal<Double> = leader.ancillaryDeviceTemp
+    private val leaderProcessorTemp: StatusSignal<Double> = leader.processorTemp
+    private val followerAppliedVolts: StatusSignal<Double> = follower.motorVoltage
+    private val followerCurrent: StatusSignal<Double> = follower.statorCurrent
+    private val followerDeviceTemp: StatusSignal<Double> = follower.deviceTemp
+    private val followerAncillaryDeviceTemp: StatusSignal<Double> = follower.ancillaryDeviceTemp
+    private val followerProcessorTemp: StatusSignal<Double> = follower.processorTemp
 
-public class ShooterIOTalonFX implements ShooterIO {
-  private static final double GEAR_RATIO = 1.5;
+    init {
+        val config = TalonFXConfiguration()
+        config.Audio.AllowMusicDurDisable = true
+        config.Audio.BeepOnConfig = false
+        config.Audio.BeepOnBoot = false
+        config.CurrentLimits.StatorCurrentLimit = 60.0
+        config.CurrentLimits.StatorCurrentLimitEnable = true
+        config.MotorOutput.NeutralMode = NeutralModeValue.Coast
+        leader.configurator.apply(config)
+        follower.configurator.apply(config)
+        follower.setControl(Follower(leader.deviceID, false))
 
-  private final TalonFX leader = new TalonFX(40);
-  private final TalonFX follower = new TalonFX(41);
-
-  private final StatusSignal<Double> leaderPosition = leader.getPosition();
-  private final StatusSignal<Double> leaderVelocity = leader.getVelocity();
-  private final StatusSignal<Double> leaderAppliedVolts = leader.getMotorVoltage();
-  private final StatusSignal<Double> leaderCurrent = leader.getStatorCurrent();
-  private final StatusSignal<Double> leaderDeviceTemp = leader.getDeviceTemp();
-  private final StatusSignal<Double> leaderAncillaryDeviceTemp = leader.getAncillaryDeviceTemp();
-  private final StatusSignal<Double> leaderProcessorTemp = leader.getProcessorTemp();
-  private final StatusSignal<Double> followerAppliedVolts = follower.getMotorVoltage();
-  private final StatusSignal<Double> followerCurrent = follower.getStatorCurrent();
-  private final StatusSignal<Double> followerDeviceTemp = follower.getDeviceTemp();
-  private final StatusSignal<Double> followerAncillaryDeviceTemp = follower.getAncillaryDeviceTemp();
-  private final StatusSignal<Double> followerProcessorTemp = follower.getProcessorTemp();
-
-  public ShooterIOTalonFX() {
-    var config = new TalonFXConfiguration();
-    config.Audio.AllowMusicDurDisable = true;
-    config.Audio.BeepOnConfig = false;
-    config.Audio.BeepOnBoot = false;
-    config.CurrentLimits.StatorCurrentLimit = 60.0;
-    config.CurrentLimits.StatorCurrentLimitEnable = true;
-    config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
-    leader.getConfigurator().apply(config);
-    follower.getConfigurator().apply(config);
-    follower.setControl(new Follower(leader.getDeviceID(), false));
-
-    BaseStatusSignal.setUpdateFrequencyForAll(
-        50.0, leaderPosition, leaderVelocity, leaderAppliedVolts, leaderCurrent, followerCurrent);
-    BaseStatusSignal.setUpdateFrequencyForAll(20,
+        BaseStatusSignal.setUpdateFrequencyForAll(
+            50.0, leaderPosition, leaderVelocity, leaderAppliedVolts, leaderCurrent, followerCurrent
+        )
+        BaseStatusSignal.setUpdateFrequencyForAll(
+            20.0,
             leaderDeviceTemp,
             leaderAncillaryDeviceTemp,
             leaderProcessorTemp,
             followerDeviceTemp,
             followerAncillaryDeviceTemp,
-            followerProcessorTemp);
-    leader.optimizeBusUtilization();
-    follower.optimizeBusUtilization();
-  }
+            followerProcessorTemp
+        )
+        leader.optimizeBusUtilization()
+        follower.optimizeBusUtilization()
+    }
 
-  @Override
-  public void updateInputs(ShooterIOInputs inputs) {
-    BaseStatusSignal.refreshAll(
+    override fun updateInputs(inputs: ShooterIOInputs) {
+        BaseStatusSignal.refreshAll(
             leaderPosition, leaderVelocity, leaderAppliedVolts, leaderCurrent, followerCurrent, leaderDeviceTemp,
             leaderAncillaryDeviceTemp, leaderProcessorTemp, followerDeviceTemp, followerAncillaryDeviceTemp,
-            followerProcessorTemp);
-    inputs.flywheelPositionRad = leaderPosition.getValueAsDouble() * GEAR_RATIO;
-    inputs.flywheelVelocityRadPerSec =
-        Units.rotationsToRadians(leaderVelocity.getValueAsDouble()) * GEAR_RATIO;
-    inputs.flywheelAppliedVolts = leaderAppliedVolts.getValueAsDouble();
-    inputs.flywheelVoltages = new double[]{leaderAppliedVolts.getValueAsDouble(), followerAppliedVolts.getValueAsDouble()};
-    inputs.flywheelCurrentAmps =
-        new double[] {leaderCurrent.getValueAsDouble(), followerCurrent.getValueAsDouble()};
-    inputs.flywheelTemperature
-            = new double[]{leaderDeviceTemp.getValueAsDouble(), followerDeviceTemp.getValueAsDouble()};
-    inputs.flywheelAncillaryTemperature
-            = new double[]{leaderAncillaryDeviceTemp.getValueAsDouble(), followerAncillaryDeviceTemp.getValueAsDouble()};
-    inputs.flywheelProcessorTemperature
-            = new double[]{leaderProcessorTemp.getValueAsDouble(), followerProcessorTemp.getValueAsDouble()};
-  }
+            followerProcessorTemp
+        )
+        inputs.flywheelPositionRad = leaderPosition.valueAsDouble * GEAR_RATIO
+        inputs.flywheelVelocityRadPerSec =
+            Units.rotationsToRadians(leaderVelocity.valueAsDouble) * GEAR_RATIO
+        inputs.flywheelAppliedVolts = leaderAppliedVolts.valueAsDouble
+        inputs.flywheelVoltages = doubleArrayOf(leaderAppliedVolts.valueAsDouble, followerAppliedVolts.valueAsDouble)
+        inputs.flywheelCurrentAmps =
+            doubleArrayOf(leaderCurrent.valueAsDouble, followerCurrent.valueAsDouble)
+        inputs.flywheelTemperature
+        = doubleArrayOf(leaderDeviceTemp.valueAsDouble, followerDeviceTemp.valueAsDouble)
+        inputs.flywheelAncillaryTemperature
+        = doubleArrayOf(leaderAncillaryDeviceTemp.valueAsDouble, followerAncillaryDeviceTemp.valueAsDouble)
+        inputs.flywheelProcessorTemperature
+        = doubleArrayOf(leaderProcessorTemp.valueAsDouble, followerProcessorTemp.valueAsDouble)
+    }
 
-  public void playTone(Measure<Velocity<Dimensionless>> tone) {
-    var musicTone = new MusicTone(tone.in(Value.per(Second)));
-    leader.setControl(musicTone);
-  }
+    fun playTone(tone: Measure<Velocity<Dimensionless?>?>) {
+        val musicTone = MusicTone(tone.`in`(edu.wpi.first.units.Units.Value.per(edu.wpi.first.units.Units.Second)))
+        leader.setControl(musicTone)
+    }
 
-  @Override
-  public void setFlywheelVoltage(double volts) {
-    leader.setVoltage(volts);
-  }
+    override fun setFlywheelVoltage(volts: Double) {
+        leader.setVoltage(volts)
+    }
 
-  @Override
-  public void flywheelStop() {
-    leader.stopMotor();
-  }
+    override fun flywheelStop() {
+        leader.stopMotor()
+    }
+
+    companion object {
+        private const val GEAR_RATIO = 1.5
+    }
 }

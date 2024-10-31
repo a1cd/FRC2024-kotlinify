@@ -1,154 +1,159 @@
-package frc.robot.subsystems.intake;
+package frc.robot.subsystems.intake
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.math.controller.ProfiledPIDController;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
-import edu.wpi.first.units.*;
-import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color8Bit;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants;
-import org.littletonrobotics.junction.AutoLogOutput;
-import org.littletonrobotics.junction.Logger;
+import edu.wpi.first.math.MathUtil
+import edu.wpi.first.math.controller.ArmFeedforward
+import edu.wpi.first.math.controller.ProfiledPIDController
+import edu.wpi.first.math.geometry.Rotation2d
+import edu.wpi.first.math.trajectory.TrapezoidProfile
+import edu.wpi.first.units.*
+import edu.wpi.first.wpilibj.RobotController
+import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d
+import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj.util.Color8Bit
+import edu.wpi.first.wpilibj2.command.SubsystemBase
+import org.littletonrobotics.junction.AutoLogOutput
+import org.littletonrobotics.junction.Logger
 
-import static edu.wpi.first.units.Units.*;
-
-public class Intake extends SubsystemBase {
-    private final MechanismLigament2d ligament1;
-    private final MechanismLigament2d ligament1A;
-    private final MechanismLigament2d ligament2;
-    private final MechanismLigament2d ligament2A;
-    private final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
-    ProfiledPIDController armFB;
-    ArmFeedforward armFF;
-    IntakeIO io;
-    Mechanism2d mechanism2d = new Mechanism2d(0, 0);
+class Intake(var io: IntakeIO) : SubsystemBase() {
+    private val ligament1: MechanismLigament2d
+    private val ligament1A: MechanismLigament2d
+    private val ligament2: MechanismLigament2d
+    private val ligament2A: MechanismLigament2d
+    private val inputs = IntakeIOInputsAutoLogged()
+    private var armFB: ProfiledPIDController = ProfiledPIDController(
+        7.0,
+        0.0,
+        0.0,
+        TrapezoidProfile.Constraints(
+            Units.RadiansPerSecond.of(18.0),
+            Units.RadiansPerSecond.per(Units.Second).of(240.0)
+        )
+    )
+    private var armFF: ArmFeedforward = ArmFeedforward(0.0, 0.0, 0.0, 0.0)
+    private var mechanism2d: Mechanism2d = Mechanism2d(0.0, 0.0)
 
     // double position = 0.0;
-    Rotation2d armTarget = Rotation2d.fromDegrees(-90);
+    private var armTarget: Rotation2d = Rotation2d.fromDegrees(-90.0)
 
-    Rotation2d off1 = new Rotation2d(1.2466477);
-    Rotation2d off1A = new Rotation2d(0.313352305);
-    Rotation2d off2 = new Rotation2d(1.36216528);
-    Rotation2d off2A = new Rotation2d(0.154247715);
-    Rotation2d quarterTurn = Rotation2d.fromRadians(Math.PI / 2);
+    private var off1: Rotation2d = Rotation2d(1.2466477)
+    private var off1A: Rotation2d = Rotation2d(0.313352305)
+    private var off2: Rotation2d = Rotation2d(1.36216528)
+    private var off2A: Rotation2d = Rotation2d(0.154247715)
+    private var quarterTurn: Rotation2d = Rotation2d.fromRadians(Math.PI / 2)
 
-    public Intake(IntakeIO io) {
-        this.io = io;
-        armFF = new ArmFeedforward(0.0, 0.0, 0.0, 0.0);
-        armFB = new ProfiledPIDController(7.0, 0.0, 0.0, new Constraints(RadiansPerSecond.of(18), RadiansPerSecond.per(Second).of(240)));
-        var root = mechanism2d.getRoot("Root", .305, .220);
-        armFB.enableContinuousInput(-Math.PI, Math.PI);
-        armFB.setTolerance(0.025);
-        ligament1 = new MechanismLigament2d("Intake", .135, off1.getDegrees(), .1, new Color8Bit(1, 1, 1));
-        ligament1A = new MechanismLigament2d("Intake", 0.232427, off1A.minus(quarterTurn).getDegrees(), .5, new Color8Bit(1, 1, 1));
-        ligament2 = new MechanismLigament2d("Intake2", .227, off2.getDegrees(), .1, new Color8Bit(1, 1, 1));
-        ligament2A = new MechanismLigament2d("Intake2", 0.232983, off2A.minus(quarterTurn).getDegrees(), .5, new Color8Bit(1, 1, 1));
-        root.append(ligament1).append(ligament1A);
-        root.append(ligament2).append(ligament2A);
+    private var mustReset: Boolean = true
+    private var rollerVoltageSetpoint = 0.0
 
-        SmartDashboard.putNumber("IntakePIDD", armFB.getD());
-        SmartDashboard.putNumber("IntakePIDP", armFB.getP());
+    private fun resetArmFB() {
+        armFB.reset(
+            TrapezoidProfile.State(
+                Units.Radians.of(inputs.armPositionRad),
+                Units.RadiansPerSecond.of(inputs.armVelocityRadPerSec)
+            )
+        )
     }
 
-
-    boolean mustReset = true;
-    private double rollerVoltageSetpoint = 0.0;
-
-    public void resetArmFB() {
-        armFB.reset(new TrapezoidProfile.State(Radians.of(inputs.armPositionRad), RadiansPerSecond.of(inputs.armVelocityRadPerSec)));
-    }
-
-    public void setIntakePosition(Rotation2d position) {
-        armTarget = position;
+    fun setIntakePosition(position: Rotation2d) {
+        armTarget = position
     }
 
     @AutoLogOutput
-    public boolean feedControlDisabled() {
-        return disableFeedControl;
+    fun feedControlDisabled(): Boolean {
+        return disableFeedControl
     }
 
-    public void setFeedControl(boolean disabled) {
-        this.disableFeedControl = disabled;
+    fun setFeedControl(disabled: Boolean) {
+        this.disableFeedControl = disabled
     }
 
-    boolean disableFeedControl = false;
-    @Override
-    public void periodic() {
-        io.updateInputs(inputs);
-        Logger.processInputs("Intake", inputs);
-        if(this.getCurrentCommand() != null) {
-            Logger.recordOutput("Commands/Intake", this.getCurrentCommand().getName());
+    private var disableFeedControl: Boolean = false
+
+    init {
+        val root = mechanism2d.getRoot("Root", .305, .220)
+        armFB.enableContinuousInput(-Math.PI, Math.PI)
+        armFB.setTolerance(0.025)
+        ligament1 = MechanismLigament2d("Intake", .135, off1.degrees, .1, Color8Bit(1, 1, 1))
+        ligament1A = MechanismLigament2d("Intake", 0.232427, off1A.minus(quarterTurn).degrees, .5, Color8Bit(1, 1, 1))
+        ligament2 = MechanismLigament2d("Intake2", .227, off2.degrees, .1, Color8Bit(1, 1, 1))
+        ligament2A = MechanismLigament2d("Intake2", 0.232983, off2A.minus(quarterTurn).degrees, .5, Color8Bit(1, 1, 1))
+        root.append(ligament1).append(ligament1A)
+        root.append(ligament2).append(ligament2A)
+
+        SmartDashboard.putNumber("IntakePIDD", armFB.d)
+        SmartDashboard.putNumber("IntakePIDP", armFB.p)
+    }
+
+
+    override fun periodic() {
+        io.updateInputs(inputs)
+        Logger.processInputs("Intake", inputs)
+        if (this.currentCommand != null) {
+            Logger.recordOutput("Commands/Intake", this.currentCommand.name)
         } else {
-            Logger.recordOutput("Commands/Intake", "");
+            Logger.recordOutput("Commands/Intake", "")
         }
-        if(inputs.armPositionRad < 1.715 && inputs.armPositionRad > -0.97){
-            io.setRollerPercent(0.0);
+        if (inputs.armPositionRad < 1.715 && inputs.armPositionRad > -0.97) {
+            io.setRollerPercent(0.0)
         }
         if (mustReset) {
-            resetArmFB();
-            mustReset = false;
+            resetArmFB()
+            mustReset = false
         }
-        if (disableFeedControl) {
+        if (!disableFeedControl) {
+            if (RobotController.isSysActive()) io.setArmVoltage(
+                armFB.calculate(inputs.armPositionRad, MathUtil.angleModulus(armTarget.radians))
+                        + armFF.calculate(armFB.setpoint.position, armFB.setpoint.velocity)
+            )
+            else io.setArmVoltage(0.0)
+        }
 
-        } else if (RobotController.isSysActive())
-            io.setArmVoltage(
-                    armFB.calculate(inputs.armPositionRad, MathUtil.angleModulus(armTarget.getRadians()))
-                            + armFF.calculate(armFB.getSetpoint().position, armFB.getSetpoint().velocity));
-        else io.setArmVoltage(0.0);
-
-        Rotation2d rotation2d = new Rotation2d(inputs.armPositionRad);
+        val rotation2d = Rotation2d(inputs.armPositionRad)
         ligament1.setAngle(
-                rotation2d
-                        .plus(off1)
-                        .minus(quarterTurn)
-                        .times(-1));
+            rotation2d
+                .plus(off1)
+                .minus(quarterTurn)
+                .times(-1.0)
+        )
         ligament2.setAngle(
-                rotation2d
-                        .plus(off2)
-                        .minus(quarterTurn)
-                        .times(-1));
-        Logger.recordOutput("Intake", mechanism2d);
+            rotation2d
+                .plus(off2)
+                .minus(quarterTurn)
+                .times(-1.0)
+        )
+        Logger.recordOutput("Intake", mechanism2d)
 
-        io.setRollerVoltage(rollerVoltageSetpoint/* * ((inputs.armPositionRad > -4.5) ? -1 : 1)*/);
+        io.setRollerVoltage(rollerVoltageSetpoint /* * ((inputs.armPositionRad > -4.5) ? -1 : 1)*/)
     }
 
-    public void setRollerVoltage(double voltage) {
-        rollerVoltageSetpoint = voltage;
+    fun setRollerVoltage(voltage: Double) {
+        rollerVoltageSetpoint = voltage
     }
 
-    public Measure<Voltage> getArmCharacterizationVoltage() {
-        return Volts.of(inputs.armAppliedVolts);
-    }
+    val armCharacterizationVoltage: Measure<Voltage>
+        get() = Units.Volts.of(inputs.armAppliedVolts)
 
-    public Measure<Angle> getArmCharacterizationPosition() {
-        return Radians.of(inputs.armPositionRad);
-    }
+    val armCharacterizationPosition: Measure<Angle>
+        get() = Units.Radians.of(inputs.armPositionRad)
 
-    public Measure<Velocity<Angle>> getArmCharacterizationVelocity() {
-        return RadiansPerSecond.of(inputs.armVelocityRadPerSec);
-    }
+    val armCharacterizationVelocity: Measure<Velocity<Angle>>
+        get() = Units.RadiansPerSecond.of(inputs.armVelocityRadPerSec)
 
-    /**
-     * Run open loop at the specified voltage.
-     */
-    public Measure<Current> getArmCharacterizationCurrent() {
-        double sum = 0.0;
-        for (int i = inputs.rollerCurrentAmps.length - 1; i >= 0; i--) {
-            sum += inputs.rollerCurrentAmps[i];
+    val armCharacterizationCurrent: Measure<Current>
+        /**
+         * Run open loop at the specified voltage.
+         */
+        get() {
+            var sum = 0.0
+            for (i in inputs.rollerCurrentAmps.indices.reversed()) {
+                sum += inputs.rollerCurrentAmps[i]
+            }
+            return if (inputs.rollerCurrentAmps.size != 0) {
+                Units.Amps.of(sum / inputs.rollerCurrentAmps.size)
+            } else Units.Amps.zero()
         }
-        if (inputs.rollerCurrentAmps.length != 0) {
-            return Amps.of(sum / inputs.rollerCurrentAmps.length);
-        } else return Amps.zero();
-    }
 
-    public void runArmVolts(Measure<Voltage> voltageMeasure) {
-        io.setArmVoltage(voltageMeasure.in(Volts));
+    fun runArmVolts(voltageMeasure: Measure<Voltage?>) {
+        io.setArmVoltage(voltageMeasure.`in`(Units.Volts))
     }
 }

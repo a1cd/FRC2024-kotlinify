@@ -10,66 +10,65 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
+package frc.robot.subsystems.drive
 
-package frc.robot.subsystems.drive;
-
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.wpilibj.simulation.DCMotorSim;
-import edu.wpi.first.wpilibj.simulation.LinearSystemSim;
+import edu.wpi.first.math.MathUtil
+import edu.wpi.first.math.geometry.Rotation2d
+import edu.wpi.first.math.system.plant.DCMotor
+import edu.wpi.first.math.system.plant.LinearSystemId
+import edu.wpi.first.wpilibj.simulation.DCMotorSim
+import frc.robot.subsystems.drive.ModuleIO.ModuleIOInputs
+import kotlin.math.abs
 
 /**
  * Physics sim implementation of module IO.
  *
- * <p>Uses two flywheel sims for the drive and turn motors, with the absolute position initialized
+ *
+ * Uses two flywheel sims for the drive and turn motors, with the absolute position initialized
  * to a random value. The flywheel sims are not physically accurate, but provide a decent
  * approximation for the behavior of the module.
  */
-public class ModuleIOSim implements ModuleIO {
-  private static final double LOOP_PERIOD_SECS = 0.02;
+class ModuleIOSim : ModuleIO {
+    private val driveSim: DCMotorSim =
+        DCMotorSim(LinearSystemId.createDCMotorSystem(0.13437 / 6.75, 0.13437 / 6.75), DCMotor.getNEO(1), 6.75)
+    private val turnSim: DCMotorSim = DCMotorSim(DCMotor.getNEO(1), 150.0 / 7.0, 0.004)
 
-  private DCMotorSim driveSim = new DCMotorSim(LinearSystemId.createDCMotorSystem(0.13437/6.75,0.13437/6.75), DCMotor.getNEO(1), 6.75);
-  private DCMotorSim turnSim = new DCMotorSim(DCMotor.getNEO(1), 150.0 / 7.0, 0.004);
+    private val turnAbsoluteInitPosition: Rotation2d = Rotation2d(Math.random() * 2.0 * Math.PI)
+    private var driveAppliedVolts: Double = 0.0
+    private var turnAppliedVolts: Double = 0.0
 
-  private final Rotation2d turnAbsoluteInitPosition = new Rotation2d(Math.random() * 2.0 * Math.PI);
-  private double driveAppliedVolts = 0.0;
-  private double turnAppliedVolts = 0.0;
+    constructor()
 
-  public ModuleIOSim() {
-  }
+    constructor(ignored: Int)
 
-  public ModuleIOSim(int ignored) {
-  }
+    override fun updateInputs(inputs: ModuleIOInputs) {
+        driveSim.update(LOOP_PERIOD_SECS)
+        turnSim.update(LOOP_PERIOD_SECS)
 
-  @Override
-  public void updateInputs(ModuleIOInputs inputs) {
-    driveSim.update(LOOP_PERIOD_SECS);
-    turnSim.update(LOOP_PERIOD_SECS);
+        inputs.drivePositionRad = driveSim.angularPositionRad
+        inputs.driveVelocityRadPerSec = driveSim.angularVelocityRadPerSec
+        inputs.driveAppliedVolts = driveAppliedVolts
+        inputs.driveCurrentAmps = doubleArrayOf(abs(driveSim.currentDrawAmps))
 
-    inputs.drivePositionRad = driveSim.getAngularPositionRad();
-    inputs.driveVelocityRadPerSec = driveSim.getAngularVelocityRadPerSec();
-    inputs.driveAppliedVolts = driveAppliedVolts;
-    inputs.driveCurrentAmps = new double[] {Math.abs(driveSim.getCurrentDrawAmps())};
+        inputs.turnAbsolutePosition =
+            Rotation2d(turnSim.angularPositionRad).plus(turnAbsoluteInitPosition)
+        inputs.turnPosition = Rotation2d(turnSim.angularPositionRad)
+        inputs.turnVelocityRadPerSec = turnSim.angularVelocityRadPerSec
+        inputs.turnAppliedVolts = turnAppliedVolts
+        inputs.turnCurrentAmps = doubleArrayOf(abs(turnSim.currentDrawAmps))
+    }
 
-    inputs.turnAbsolutePosition =
-        new Rotation2d(turnSim.getAngularPositionRad()).plus(turnAbsoluteInitPosition);
-    inputs.turnPosition = new Rotation2d(turnSim.getAngularPositionRad());
-    inputs.turnVelocityRadPerSec = turnSim.getAngularVelocityRadPerSec();
-    inputs.turnAppliedVolts = turnAppliedVolts;
-    inputs.turnCurrentAmps = new double[] {Math.abs(turnSim.getCurrentDrawAmps())};
-  }
+    override fun setDriveVoltage(volts: Double) {
+        driveAppliedVolts = MathUtil.clamp(volts, -12.0, 12.0)
+        driveSim.setInputVoltage(driveAppliedVolts)
+    }
 
-  @Override
-  public void setDriveVoltage(double volts) {
-    driveAppliedVolts = MathUtil.clamp(volts, -12.0, 12.0);
-    driveSim.setInputVoltage(driveAppliedVolts);
-  }
+    override fun setTurnVoltage(volts: Double) {
+        turnAppliedVolts = MathUtil.clamp(volts, -12.0, 12.0)
+        turnSim.setInputVoltage(turnAppliedVolts)
+    }
 
-  @Override
-  public void setTurnVoltage(double volts) {
-    turnAppliedVolts = MathUtil.clamp(volts, -12.0, 12.0);
-    turnSim.setInputVoltage(turnAppliedVolts);
-  }
+    companion object {
+        private const val LOOP_PERIOD_SECS: Double = 0.02
+    }
 }

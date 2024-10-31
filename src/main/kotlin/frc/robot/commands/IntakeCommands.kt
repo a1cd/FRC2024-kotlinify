@@ -1,82 +1,90 @@
-package frc.robot.commands;
+package frc.robot.commands
 
-import edu.wpi.first.math.geometry.Pose3d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.RunCommand;
-import frc.robot.subsystems.feeder.Feeder;
-import frc.robot.subsystems.intake.Intake;
-import static edu.wpi.first.wpilibj.DriverStation.Alliance.Blue;
-import static edu.wpi.first.wpilibj2.command.Commands.sequence;
+import edu.wpi.first.math.geometry.Pose3d
+import edu.wpi.first.math.geometry.Rotation2d
+import edu.wpi.first.math.geometry.Rotation3d
+import edu.wpi.first.wpilibj.DriverStation
+import edu.wpi.first.wpilibj.DriverStation.Alliance
+import edu.wpi.first.wpilibj2.command.Command
+import edu.wpi.first.wpilibj2.command.Commands
+import edu.wpi.first.wpilibj2.command.RunCommand
+import frc.robot.subsystems.feeder.Feeder
+import frc.robot.subsystems.intake.Intake
 
-public class IntakeCommands {
-    public static Command intakeCommand(Intake intake) {
-        return new RunCommand(
-                () -> {
-                    intake.setIntakePosition(Rotation2d.fromDegrees(-10));
-                    intake.setRollerVoltage(9.0);
-                },
-                intake);
+object IntakeCommands {
+    fun intakeCommand(intake: Intake): Command {
+        return RunCommand(
+            {
+                intake.setIntakePosition(Rotation2d.fromDegrees(-10.0))
+                intake.setRollerVoltage(9.0)
+            },
+            intake
+        )
     }
 
-    public static Command safeIntakeCommand(Intake intake, Feeder feeder) {
+    private fun safeIntakeCommand(intake: Intake, feeder: Feeder): Command {
         return intakeCommand(intake)
-                .onlyWhile(() -> !feeder.getBeamBroken());
-    }
-    public static Pose3d getSourcePos() {
-        return (DriverStation.getAlliance().orElse(Blue).equals(Blue)) ?
-                new Pose3d(15.424, 0.909, 2.13, new Rotation3d()) :
-                new Pose3d(16.27, 0.909, 2.13, new Rotation3d());
-    }
-    public static Command smartIntakeCommand(Intake intake, Feeder feeder) {
-        return sequence(
-                safeIntakeCommand(intake, feeder)
-                        .until(feeder::getBeamBroken),
-                intakeCommand(intake)
-                        .withTimeout(1.0)
-                        .onlyWhile(feeder::getIntakeBeamBroken),
-                IntakeCommands.flushIntakeWithoutTheArmExtendedOutward(intake,feeder)
-                        .onlyWhile(feeder::getIntakeBeamBroken)
-        ).onlyIf(()-> !(feeder.getIntakeBeamBroken() || feeder.getBeamBroken()));
+            .onlyWhile { !feeder.beamBroken }
     }
 
-    public static Command flushIntake(Intake intake){
-        return new RunCommand(
-                () -> {
-                    intake.setIntakePosition(Rotation2d.fromRadians(-2.05));
-                    intake.setRollerVoltage(-6.0);
-                },
-                intake);
+    val sourcePos: Pose3d
+        get() = if ((DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue)) Pose3d(
+            15.424,
+            0.909,
+            2.13,
+            Rotation3d()
+        ) else Pose3d(16.27, 0.909, 2.13, Rotation3d())
+
+    fun smartIntakeCommand(intake: Intake, feeder: Feeder): Command {
+        return Commands.sequence(
+            safeIntakeCommand(intake, feeder)
+                .until { feeder.beamBroken },
+            intakeCommand(intake)
+                .withTimeout(1.0)
+                .onlyWhile { feeder.intakeBeamBroken },
+            flushIntakeWithoutTheArmExtendedOutward(intake, feeder)
+                .onlyWhile { feeder.intakeBeamBroken }
+        ).onlyIf { !(feeder.intakeBeamBroken || feeder.beamBroken) }
     }
 
-    public static Command flushIntakeWithoutTheArmExtendedOutward(Intake intake, Feeder feeder){
-        return new RunCommand(
-                () -> {
-                    intake.setIntakePosition(Rotation2d.fromRadians(-2.05));
-                    intake.setRollerVoltage(6.0);
-                }, intake)
-                .raceWith(SpecializedCommands.timeoutDuringAutoSim(5))
-                .until(() -> !feeder.getIntakeBeamBroken());
+    fun flushIntake(intake: Intake): Command {
+        return RunCommand(
+            {
+                intake.setIntakePosition(Rotation2d.fromRadians(-2.05))
+                intake.setRollerVoltage(-6.0)
+            },
+            intake
+        )
     }
 
-    public static Command idleCommand(Intake intake) {
-        return new RunCommand(
-                () -> {
-                    intake.setIntakePosition(Rotation2d.fromRadians(-1.90));
-                    intake.setRollerVoltage(0.0);
-                },
-                intake);
+    fun flushIntakeWithoutTheArmExtendedOutward(intake: Intake, feeder: Feeder): Command {
+        return RunCommand(
+            {
+                intake.setIntakePosition(Rotation2d.fromRadians(-2.05))
+                intake.setRollerVoltage(6.0)
+            }, intake
+        )
+            .raceWith(SpecializedCommands.timeoutDuringAutoSim(5.0))
+            .until { !feeder.intakeBeamBroken }
     }
 
-    public static Command setAngle(Intake intake, double angle) {
-        return new RunCommand(
-                () -> {
-                    intake.setIntakePosition(Rotation2d.fromRadians(angle));
-                    intake.setRollerVoltage(0.0);
-                },
-                intake);
+    fun idleCommand(intake: Intake): Command {
+        return RunCommand(
+            {
+                intake.setIntakePosition(Rotation2d.fromRadians(-1.90))
+                intake.setRollerVoltage(0.0)
+            },
+            intake
+        )
     }
 
+    fun setAngle(intake: Intake, angle: Double): Command {
+        return RunCommand(
+            {
+                intake.setIntakePosition(Rotation2d.fromRadians(angle))
+                intake.setRollerVoltage(0.0)
+            },
+            intake
+        )
+    }
 }
