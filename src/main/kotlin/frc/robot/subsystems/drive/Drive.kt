@@ -59,12 +59,12 @@ class Drive(
     private val gyroInputs = GyroIOInputsAutoLogged()
     private val modules = arrayOfNulls<Module>(4) // FL, FR, BL, BR
     private var swerveModulePositions: Array<SwerveModulePosition?>
-    private val visionInputs: Array<VisionIOInputs>
+    private var visionInputs: Array<VisionIOInputs>
 
     //  private final
     private val kinematics = SwerveDriveKinematics(*moduleTranslations)
     private val poseEstimator: SwerveDrivePoseEstimator
-    private var pose = Pose2d()
+    var pose = Pose2d()
     private var positionPID: PIDConstants = PIDConstants(5.0, 0.0) //64 //works at 8
     var rotationPID: PIDConstants = PIDConstants(3.0, 0.0) //32+16
     private var angularVelocity: Measure<Velocity<Angle>> = edu.wpi.first.units.Units.RadiansPerSecond.zero()
@@ -100,16 +100,17 @@ class Drive(
     private var transform: Transform2d = Transform2d(0.0, 0.0, Rotation2d.fromRadians(0.0))
 
     init {
-        visionInputs = arrayOfNulls(visionIO.size)
-        run {
-            var i = 0
-            val visionIOLength = visionIO.size
-            while (i < visionIOLength) {
-                visionInputs[i] = object : VisionIOInputs(visionIO[i].cameraName) {
-                }
-                i++
+        var visionInputsHold = arrayOfNulls(visionIO.size)
+        var i = 0
+        val visionIOLength = visionIO.size
+        while (i < visionIOLength) {
+            visionInputsHold[i] = object : VisionIOInputs(visionIO[i].cameraName) {
             }
+            i++
         }
+        visionInputs = visionInputsHold.requireNoNulls()
+
+        
         timestampSeconds = DoubleArray(visionIO.size)
         run {
             var i = 0

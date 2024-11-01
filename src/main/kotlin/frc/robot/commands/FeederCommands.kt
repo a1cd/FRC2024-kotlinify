@@ -10,29 +10,29 @@ object FeederCommands {
         return Commands.repeatingSequence(
             Commands.either(
                 Commands.run({ feeder.runVolts(0.0) })
-                    .onlyWhile(BooleanSupplier { feeder.getBeamBroken() }),
+                    .onlyWhile(BooleanSupplier { feeder.beamBroken }),
                 Commands.sequence(
                     Commands.run({ feeder.runVolts(0.0) })
-                        .onlyWhile { !feeder.getBeamBroken() },
+                        .onlyWhile { !feeder.beamBroken },
                     zeroToBeamBreak(feeder)
                 ),
-                BooleanSupplier { feeder.getBeamBroken() }
-            ).beforeStarting({ feeder.setState(Feeder.State.none) })
+                BooleanSupplier { feeder.beamBroken }
+            ).beforeStarting({ feeder.state = (Feeder.State.none) })
         )
     }
 
     fun feedToShooter(feeder: Feeder): Command {
         return Commands.sequence(
             Commands.run({ feeder.runVolts(9.0) }, feeder)
-                .onlyIf(BooleanSupplier { feeder.getBeamBroken() })
+                .onlyIf(BooleanSupplier { feeder.beamBroken })
                 .raceWith(SpecializedCommands.timeoutDuringAutoSim(2.0))
-                .until { !feeder.getBeamBroken() },
+                .until { !feeder.beamBroken },
             Commands.run({ feeder.runVolts(9.0) }, feeder)
                 .withTimeout(0.5),
             Commands.runOnce({ feeder.runVolts(0.0) })
         )
-            .beforeStarting({ feeder.setState(Feeder.State.feedingShooter) })
-            .finallyDo { interrupted: Boolean -> feeder.setState(Feeder.State.none) }
+            .beforeStarting({ feeder.state = Feeder.State.feedingShooter })
+            .finallyDo { interrupted: Boolean -> feeder.state = Feeder.State.none }
     }
 
     fun flushFeeder(feeder: Feeder): Command {
@@ -49,34 +49,34 @@ object FeederCommands {
             Commands.sequence(
                 Commands.sequence(
                     Commands.run({ feeder.runVolts(6.0) }, feeder)
-                        .onlyWhile { !feeder.getIntakeBeamBroken() }
+                        .onlyWhile { !feeder.intakeBeamBroken }
                         .raceWith(SpecializedCommands.timeoutDuringAutoSim(2.0)),
                     Commands.run({ feeder.runVolts(6.0) }, feeder)
-                        .onlyWhile(BooleanSupplier { feeder.getIntakeBeamBroken() })
+                        .onlyWhile(BooleanSupplier { feeder.intakeBeamBroken })
                         .raceWith(SpecializedCommands.timeoutDuringAutoSim(3.0))
                 )
-                    .onlyWhile { !feeder.getBeamBroken() },
+                    .onlyWhile { !feeder.beamBroken },
                 Commands.either(
                     zeroToBeamBreak(feeder),
                     slowToBeam(feeder),
-                    BooleanSupplier { feeder.getBeamBroken() }
+                    BooleanSupplier { feeder.beamBroken }
                 )
             ),
-            BooleanSupplier { feeder.getBeamBroken() })
-            .beforeStarting({ feeder.setState(Feeder.State.zeroingNote) })
-            .finallyDo { interrupted: Boolean -> feeder.setState(Feeder.State.none) }
+            BooleanSupplier { feeder.beamBroken })
+            .beforeStarting({ feeder.state = Feeder.State.zeroingNote })
+            .finallyDo { interrupted: Boolean -> feeder.state = (Feeder.State.none) }
     }
 
     private fun slowToBeam(feeder: Feeder): Command {
         return Commands.run({ feeder.runVolts(2.0) }, feeder)
-            .onlyWhile { !feeder.getBeamBroken() }
+            .onlyWhile { !feeder.beamBroken }
             .raceWith(SpecializedCommands.timeoutDuringAutoSim(2.0))
     }
 
     private fun zeroToBeamBreak(feeder: Feeder): Command {
         return Commands.sequence(
             Commands.run({ feeder.runVolts(-6.0) }, feeder)
-                .onlyWhile(BooleanSupplier { feeder.getBeamBroken() }),
+                .onlyWhile(BooleanSupplier { feeder.beamBroken }),
             slowToBeam(feeder)
         )
             .raceWith(SpecializedCommands.timeoutDuringAutoSim(1.0))

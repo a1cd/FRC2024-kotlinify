@@ -48,7 +48,7 @@ object ShooterCommands {
     private var fartherIn: LoggedDashboardNumber =
         LoggedDashboardNumber("Shoot Farther In", Units.Inches.of(0.0).`in`(Units.Meters))
 
-    private val speakerPos: Pose3d
+    val speakerPos: Pose3d
         get() = if ((DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue)) Pose3d(
             0.24 - fartherIn.get(),
             5.50,

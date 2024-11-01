@@ -103,9 +103,9 @@ object DriveCommands {
                 // Convert to field relative speeds & send command
                 drive.runVelocity(
                     ChassisSpeeds.fromFieldRelativeSpeeds(
-                        linearVelocity.x * drive.maxLinearSpeedMetersPerSec,
-                        linearVelocity.y * drive.maxLinearSpeedMetersPerSec,
-                        omega * drive.maxAngularSpeedRadPerSec,
+                        linearVelocity.x * Drive.maxLinearSpeedMetersPerSec,
+                        linearVelocity.y * Drive.maxLinearSpeedMetersPerSec,
+                        omega * Drive.maxAngularSpeedRadPerSec,
                         drive.rotation.rotateBy(
                             allianceRotation
                         )
@@ -137,13 +137,13 @@ object DriveCommands {
                         // fall back to stick control
                         var omega = MathUtil.applyDeadband(omegaSupplier.asDouble, DEADBAND)
                         omega = (omega * omega).withSign(omega)
-                        detectedNote = omega * drive.maxAngularSpeedRadPerSec
+                        detectedNote = omega * Drive.maxAngularSpeedRadPerSec
                     }
                     drive.runVelocity(
                         ChassisSpeeds.fromFieldRelativeSpeeds(
-                            linearVelocity.x * drive.maxLinearSpeedMetersPerSec,
-                            linearVelocity.y * drive.maxLinearSpeedMetersPerSec,
-                            detectedNote!!,
+                            linearVelocity.x * Drive.maxLinearSpeedMetersPerSec,
+                            linearVelocity.y * Drive.maxLinearSpeedMetersPerSec,
+                            detectedNote,
                             drive.rotation.rotateBy(allianceRotation)
                         )
                     )
@@ -175,14 +175,14 @@ object DriveCommands {
                     val linearVelocity = getLinearVelocity(xSupplier, ySupplier)
                     // Get the angle to point at the goal
                     val goalAngle =
-                        ShooterCommands.getSpeakerPos().toPose2d()
+                        ShooterCommands.speakerPos.toPose2d()
                             .translation
                             .minus(drive.pose.translation)
                             .angle
                     val robotVelocity = drive.twistPerDt
-                    var targetPose = ShooterCommands.getSpeakerPos().toPose2d()
+                    var targetPose = ShooterCommands.speakerPos.toPose2d()
                     targetPose = targetPose.plus(Transform2d(0.0, goalAngle.sin * 0.0, Rotation2d()))
-                    val movingWhileShootingTarget: Pose2d = ShooterCommands.getSpeakerPos().toPose2d()
+                    val movingWhileShootingTarget: Pose2d = ShooterCommands.speakerPos.toPose2d()
                     Logger.recordOutput("speakerAimTargetPose", movingWhileShootingTarget)
 
 
@@ -209,8 +209,8 @@ object DriveCommands {
                     Logger.recordOutput("Aim/Setpoint Position", rotationController.setpoint.position)
                     drive.runVelocity(
                         ChassisSpeeds.fromFieldRelativeSpeeds(
-                            linearVelocity.x * drive.maxLinearSpeedMetersPerSec,
-                            linearVelocity.y * drive.maxLinearSpeedMetersPerSec,
+                            linearVelocity.x * Drive.maxLinearSpeedMetersPerSec,
+                            linearVelocity.y * Drive.maxLinearSpeedMetersPerSec,
 
                             (rotationController.setpoint.velocity + value),
                             drive.rotation.rotateBy(allianceRotation)

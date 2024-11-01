@@ -12,7 +12,7 @@ import kotlin.math.abs
 object ClimbCommands {
     // run left until cannot move, if cannot move
     fun zero(climb: Climb, currentThreshhold: Double): Command {
-        val debouncers: Any = object : Any() {
+        val debouncers = object {
             var leftDebounce: Debouncer = Debouncer(1.0, DebounceType.kFalling)
             var cannotMoveAL: Boolean = false
             var cannotMoveAR: Boolean = false
@@ -36,14 +36,14 @@ object ClimbCommands {
                 runLeft(climb, true)
                     .onlyWhile(
                         getDebounce(debouncers.leftDebounce,
-                            DoubleSupplier { climb.getLeftVelocityRadPerSec() },
+                            DoubleSupplier { climb.leftVelocityRadPerSec },
                             Runnable { debouncers.cannotMoveAL = true })
                     )
                     .withTimeout(8.0),
                 runRight(climb, true)
                     .onlyWhile(
                         getDebounce(debouncers.rightDebounce,
-                            DoubleSupplier { climb.getRightVelocityRadPerSec() },
+                            DoubleSupplier { climb.rightVelocityRadPerSec },
                             Runnable { debouncers.cannotMoveAR = true })
                     )
                     .withTimeout(8.0)

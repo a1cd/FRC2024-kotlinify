@@ -60,10 +60,10 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardNumber
  * subsystems, commands, and button mappings) should be declared here.
  */
 class RobotContainer {
-    var shooter: Shooter? = null
-    var feeder: Feeder? = null
-    var intake: Intake? = null
-    private var climb: Climb? = null
+    var shooter: Shooter
+    var feeder: Feeder
+    var intake: Intake
+    private var climb: Climb
 
     //    private final Dashboard dashboard;
     private val leds: LEDs = LEDs()
@@ -82,8 +82,7 @@ class RobotContainer {
     var angleOffsetInput: LoggedDashboardNumber = LoggedDashboardNumber("Angle Offset", 0.0)
 
     // Subsystems
-    @JvmField
-    var drive: Drive? = null
+    var drive: Drive
     private var invertX: LoggedDashboardBoolean = LoggedDashboardBoolean("Invert X Axis", false)
     private var invertY: LoggedDashboardBoolean = LoggedDashboardBoolean("Invert Y Axis", false)
     private var invertOmega: LoggedDashboardBoolean = LoggedDashboardBoolean("Invert Omega Axis", false)
@@ -122,7 +121,7 @@ class RobotContainer {
                         object : GyroIO {},
                         VisionIOSim(
                             "ShootSideCamera"
-                        ) { if ((drive == null)) (drive!!.pose) else Pose2d() },
+                        ) { if ((drive == null)) (drive.pose) else Pose2d() },
                         ModuleIOSim(),
                         ModuleIOSim(),
                         ModuleIOSim(),
@@ -144,11 +143,11 @@ class RobotContainer {
                         object : ModuleIO {},
                         object : ModuleIO {},
                         arrayOf(object : VisionIO {
-                            override fun getCameraName(): String {
+                            fun getCameraName(): String {
                                 return "ShootSideCamera"
                             }
                         }, object : VisionIO {
-                            override fun getCameraName(): String {
+                            fun getCameraName(): String {
                                 return "RightCamera"
                             }
                         }),
@@ -261,14 +260,14 @@ class RobotContainer {
         when (sysIDMode) {
             SysIDMode.Disabled -> {
                 // ---- DEFAULT COMMANDS ----
-                drive!!.defaultCommand = DriveCommands.joystickDrive(
+                drive.defaultCommand = DriveCommands.joystickDrive(
                     drive,
                     { (-driverController.leftY * (if (invertX.get()) -1 else 1)) },
                     { (-driverController.leftX * (if (invertY.get()) -1 else 1)) },
                     { (-driverController.rightX) * (if (invertOmega.get()) -1 else 1) })
-                intake!!.defaultCommand = IntakeCommands.idleCommand(intake)
-                feeder!!.defaultCommand = FeederCommands.idleFeeder(feeder)
-                shooter!!.defaultCommand = Commands.either(
+                intake.defaultCommand = IntakeCommands.idleCommand(intake)
+                feeder.defaultCommand = FeederCommands.idleFeeder(feeder)
+                shooter.defaultCommand = Commands.either(
                     ShooterCommands.shooterIdle(shooter),
                     Commands.sequence(
                         ShooterCommands.shooterIdle(shooter).until { shooter.hoodAtSetpoint() }.withTimeout(.5),
@@ -277,7 +276,7 @@ class RobotContainer {
                     ).withName("Default Command")
                 ) { shooter.hasZeroed() }
                 // CLIMB DEFAULT COMMAND
-                climb!!.defaultCommand = Commands.sequence(
+                climb.defaultCommand = Commands.sequence(
                     ClimbCommands.zero(climb, 10.0).withTimeout(5.0),
                     ClimbCommands.runClimb(climb, { operatorController.leftY }, { operatorController.rightY })
                 )
@@ -291,7 +290,7 @@ class RobotContainer {
                     .ignoringDisable(true)
 
                 // ---- DRIVETRAIN COMMANDS ----
-                driverController.x().whileTrue(Commands.runOnce({ drive!!.stopWithX() }, drive))
+                driverController.x().whileTrue(Commands.runOnce({ drive.stopWithX() }, drive))
 
                 val command =
                     DriveCommands.aimAtSpeakerCommand(
@@ -410,7 +409,7 @@ class RobotContainer {
             }
 
             SysIDMode.DriveMotors -> {
-                drive!!.defaultCommand = DriveCommands.joystickDrive(
+                drive.defaultCommand = DriveCommands.joystickDrive(
                     drive,
                     { driverController.leftY },
                     { driverController.leftX },
@@ -423,8 +422,8 @@ class RobotContainer {
                             Units.Seconds.of(12.0)
                         ),
                         Mechanism(
-                            { voltageMeasure: Measure<Voltage?>? -> drive!!.runCharacterizationVolts(voltageMeasure) },
-                            { routineLog: SysIdRoutineLog? -> drive!!.populateDriveCharacterizationData(routineLog) },
+                            { voltageMeasure: Measure<Voltage?> -> drive.runCharacterizationVolts(voltageMeasure) },
+                            { routineLog: SysIdRoutineLog -> drive.populateDriveCharacterizationData(routineLog) },
                             drive,
                             "DrivetrainDriveMotors"
                         )
@@ -432,26 +431,26 @@ class RobotContainer {
                 driverController
                     .x()
                     .whileTrue(drivetrainDriveSysID.dynamic(SysIdRoutine.Direction.kForward))
-                    .onFalse(Commands.runOnce({ drive!!.stopWithX() }, drive))
+                    .onFalse(Commands.runOnce({ drive.stopWithX() }, drive))
                 driverController
                     .y()
                     .whileTrue(drivetrainDriveSysID.dynamic(SysIdRoutine.Direction.kReverse))
-                    .onFalse(Commands.runOnce({ drive!!.stopWithX() }, drive))
+                    .onFalse(Commands.runOnce({ drive.stopWithX() }, drive))
                 driverController
                     .a()
                     .whileTrue(drivetrainDriveSysID.quasistatic(SysIdRoutine.Direction.kForward).withTimeout(20.0))
-                    .onFalse(Commands.runOnce({ drive!!.stopWithX() }, drive))
+                    .onFalse(Commands.runOnce({ drive.stopWithX() }, drive))
                 driverController
                     .b()
                     .whileTrue(drivetrainDriveSysID.quasistatic(SysIdRoutine.Direction.kReverse).withTimeout(20.0))
-                    .onFalse(Commands.runOnce({ drive!!.stopWithX() }, drive))
+                    .onFalse(Commands.runOnce({ drive.stopWithX() }, drive))
                 driverController
                     .rightTrigger()
                     .whileTrue(
-                        RunCommand({ shooter!!.setTargetShooterAngle(Rotation2d(-0.61)) })
+                        RunCommand({ shooter.setTargetShooterAngle(Rotation2d(-0.61)) })
                             .andThen(
                                 (RunCommand(
-                                    { shooter!!.shooterRunVelocity(5000.0) },  //THIS NUMBER NEEDS TO BE CALIBRATED
+                                    { shooter.shooterRunVelocity(5000.0) },  //THIS NUMBER NEEDS TO BE CALIBRATED
 
                                     intake
                                 ))
@@ -469,10 +468,10 @@ class RobotContainer {
                             Units.Seconds.of(36.0)
                         ),
                         Mechanism(
-                            { voltage: Measure<Voltage?>? -> shooter!!.shooterRunVolts(voltage) },
+                            { voltage: Measure<Voltage?> -> shooter.shooterRunVolts(voltage) },
                             { log: SysIdRoutineLog ->
                                 val motor = log.motor("Shooter")
-                                motor.voltage(shooter!!.characterizationAppliedVolts)
+                                motor.voltage(shooter.characterizationAppliedVolts)
                                 motor.angularPosition(shooter.characterizationPosition)
                                 motor.angularVelocity(shooter.characterizationVelocity)
                                 motor.current(shooter.characterizationCurrent)
@@ -496,7 +495,7 @@ class RobotContainer {
                                 shooterSysId.quasistatic(SysIdRoutine.Direction.kReverse).withTimeout(36.0)
                             )
                             .alongWith(RunCommand({
-                                shooter!!.setTargetShooterAngle(Rotation2d.fromRadians(0.0))
+                                shooter.setTargetShooterAngle(Rotation2d.fromRadians(0.0))
                                 shooter.setCharacterizeMode(true)
                             }))
                     )
@@ -511,11 +510,11 @@ class RobotContainer {
                             Units.Seconds.of(5.0)
                         ),
                         Mechanism(
-                            { voltageMeasure: Measure<Voltage?>? -> shooter!!.runHoodVoltage(voltageMeasure) },
+                            { voltageMeasure: Measure<Voltage?> -> shooter.runHoodVoltage(voltageMeasure) },
                             { log: SysIdRoutineLog ->
                                 val motor = log.motor("FeederKraken")
                                 motor
-                                    .voltage(shooter!!.hoodCharacterizationVoltage)
+                                    .voltage(shooter.hoodCharacterizationVoltage)
                                     .angularPosition(shooter.hoodCharacterizationPosition)
                                     .angularVelocity(shooter.hoodCharacterizationVelocity)
                             },
@@ -531,10 +530,10 @@ class RobotContainer {
                             Units.Seconds.of(9.0)
                         ),
                         Mechanism(
-                            { voltageMeasure: Measure<Voltage?>? -> intake!!.runArmVolts(voltageMeasure) },
+                            { voltageMeasure: Measure<Voltage?> -> intake.runArmVolts(voltageMeasure) },
                             { log: SysIdRoutineLog ->
                                 val motor = log.motor("IntakeWheels")
-                                motor.voltage(intake!!.armCharacterizationVoltage)
+                                motor.voltage(intake.armCharacterizationVoltage)
                                 motor.angularPosition(intake.armCharacterizationPosition)
                                 motor.angularVelocity(intake.armCharacterizationVelocity)
                                 motor.current(intake.armCharacterizationCurrent)
@@ -546,22 +545,22 @@ class RobotContainer {
                 driverController.a().onTrue(
                     Commands.sequence(
                         shooterArmSysID.quasistatic(SysIdRoutine.Direction.kForward).until {
-                            shooter!!.hoodCharacterizationPosition.gte(
+                            shooter.hoodCharacterizationPosition.gte(
                                 Units.Radians.of(1.8)
                             ) && shooter.hoodCharacterizationPosition.lte(Units.Radians.of(-1.6))
                         },  //fixme shooterArmSysID has incorrect name (intake arm sysid)
                         shooterArmSysID.quasistatic(SysIdRoutine.Direction.kReverse).until {
-                            shooter!!.hoodCharacterizationPosition.gte(
+                            shooter.hoodCharacterizationPosition.gte(
                                 Units.Radians.of(1.8)
                             ) && shooter.hoodCharacterizationPosition.lte(Units.Radians.of(-1.6))
                         },
                         shooterArmSysID.dynamic(SysIdRoutine.Direction.kForward).until {
-                            shooter!!.hoodCharacterizationPosition.gte(
+                            shooter.hoodCharacterizationPosition.gte(
                                 Units.Radians.of(1.8)
                             ) && shooter.hoodCharacterizationPosition.lte(Units.Radians.of(-1.6))
                         },
                         shooterArmSysID.dynamic(SysIdRoutine.Direction.kReverse).until {
-                            shooter!!.hoodCharacterizationPosition.gte(
+                            shooter.hoodCharacterizationPosition.gte(
                                 Units.Radians.of(1.8)
                             ) && shooter.hoodCharacterizationPosition.lte(Units.Radians.of(-1.6))
                         }
